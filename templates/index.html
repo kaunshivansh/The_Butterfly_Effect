@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>The Butterfly Effect</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow:hidden;background:#000}
+    canvas{display:block}
+
+    #struggle-msg{
+      position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+      color:rgba(255,255,255,.13);font-family:'Courier New',monospace;
+      font-size:11px;letter-spacing:.18em;pointer-events:none;
+      transition:opacity .6s;white-space:nowrap;opacity:0
+    }
+    #vol-wrap{
+      position:fixed;bottom:16px;right:18px;
+      display:flex;align-items:center;gap:8px;
+      opacity:.28;transition:opacity .3s;z-index:5
+    }
+    #vol-wrap:hover{opacity:.85}
+    #vol-label{font-family:'Courier New',monospace;font-size:10px;letter-spacing:.15em;color:#fff;user-select:none}
+    #vol-slider{-webkit-appearance:none;appearance:none;width:80px;height:2px;border-radius:2px;
+      background:rgba(255,255,255,.25);outline:none;cursor:pointer}
+    #vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+      background:#fff;cursor:pointer;box-shadow:0 0 6px rgba(255,255,255,.6)}
+    #vol-slider::-moz-range-thumb{width:11px;height:11px;border-radius:50%;border:none;
+      background:#fff;cursor:pointer;box-shadow:0 0 6px rgba(255,255,255,.6)}
+
+    /* Checkpoint tooltip */
+    #cp-tooltip{
+      position:fixed;pointer-events:none;z-index:50;
+      background:rgba(0,0,0,.82);border:1px solid rgba(255,255,255,.18);
+      padding:10px 14px;border-radius:4px;
+      font-family:'Courier New',monospace;font-size:11px;color:#eee;
+      letter-spacing:.12em;max-width:200px;line-height:1.5;
+      opacity:0;transition:opacity .2s;white-space:pre-line
+    }
+
+    /* End sequence overlay */
+    #end-overlay{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:10}
+    #end-ui{position:fixed;inset:0;opacity:0;pointer-events:none;transition:opacity 1.4s ease;z-index:20;background:#fff;overflow:hidden}
+    #end-ui.visible{opacity:1;pointer-events:all}
+
+    /* Scanline overlay */
+    #end-ui::before{
+      content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+      background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.02) 2px, rgba(0,0,0,.02) 4px);
+      animation:scanDrift 8s linear infinite
+    }
+    @keyframes scanDrift{from{transform:translateY(0)}to{transform:translateY(4px)}}
+
+    /* Title container */
+    #title-block{
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      display:flex;flex-direction:column;align-items:center;gap:0;
+      transition:top 1.2s cubic-bezier(.23,1,.32,1), transform 1.2s cubic-bezier(.23,1,.32,1);
+      z-index:2
+    }
+    #title-block.shifted{
+      top:18%;transform:translate(-50%,0)
+    }
+
+    #end-title{
+      font-family:'Courier New',monospace;font-size:clamp(20px,4.5vw,42px);
+      font-weight:bold;letter-spacing:.28em;
+      color:#111;white-space:nowrap;text-transform:uppercase;
+      position:relative;display:flex;gap:0
+    }
+    .title-letter{
+      display:inline-block;opacity:0;
+      animation:letterReveal .6s cubic-bezier(.23,1,.32,1) forwards;
+      position:relative
+    }
+    .title-letter.space{width:.35em}
+    @keyframes letterReveal{
+      0%{opacity:0;transform:translateY(20px) scaleY(0.3);filter:blur(8px)}
+      60%{opacity:1;transform:translateY(-3px) scaleY(1.05);filter:blur(0)}
+      100%{opacity:1;transform:translateY(0) scaleY(1);filter:blur(0)}
+    }
+
+    /* Glitch effect on title */
+    #end-title::after{
+      content:attr(data-text);position:absolute;top:0;left:0;
+      font-family:inherit;font-size:inherit;font-weight:inherit;letter-spacing:inherit;
+      color:#111;text-transform:uppercase;white-space:nowrap;
+      clip-path:inset(0 0 0 0);opacity:0;
+      animation:glitch 4s ease-in-out infinite 2s
+    }
+    @keyframes glitch{
+      0%,92%,100%{opacity:0;transform:translate(0)}
+      93%{opacity:.7;transform:translate(2px,-1px);color:#9b7eff}
+      94%{opacity:.5;transform:translate(-3px,1px);color:#ff3322}
+      95%{opacity:.6;transform:translate(1px,2px);color:#00ccff}
+      96%{opacity:0;transform:translate(0)}
+    }
+
+    /* Decorative line */
+    #title-line{
+      width:0;height:1.5px;background:linear-gradient(90deg,transparent,#888,transparent);
+      margin-top:16px;
+      animation:lineExpand 1s cubic-bezier(.23,1,.32,1) forwards;
+      animation-delay:1.2s;opacity:0
+    }
+    @keyframes lineExpand{
+      0%{width:0;opacity:0}
+      100%{width:min(300px,60vw);opacity:1}
+    }
+
+    /* Subtitle */
+    #end-subtitle{
+      font-family:'Courier New',monospace;font-size:clamp(9px,1.3vw,12px);
+      letter-spacing:.35em;color:rgba(0,0,0,.3);text-transform:uppercase;
+      margin-top:14px;opacity:0;
+      animation:subtitleFade 1.2s ease forwards;
+      animation-delay:1.6s
+    }
+    @keyframes subtitleFade{
+      from{opacity:0;transform:translateY(6px);letter-spacing:.55em}
+      to{opacity:1;transform:translateY(0);letter-spacing:.35em}
+    }
+
+    /* Entry form */
+    #entry-wrap{
+      position:absolute;top:75%;left:50%;transform:translate(-50%,-50%);
+      width:min(500px,82vw);display:flex;flex-direction:column;align-items:center;gap:14px;
+      opacity:0;z-index:2;
+      animation:entryAppear .8s ease forwards;
+      animation-delay:2.2s
+    }
+    @keyframes entryAppear{
+      from{opacity:0;transform:translate(-50%,-40%)}
+      to{opacity:1;transform:translate(-50%,-50%)}
+    }
+    #entry-input{
+      width:100%;background:transparent;border:none;border-bottom:1.5px solid #ccc;
+      outline:none;font-family:'Courier New',monospace;
+      font-size:clamp(13px,2vw,17px);letter-spacing:.12em;
+      color:#111;text-align:center;padding:8px 4px;caret-color:#9b7eff;
+      transition:border-color .3s
+    }
+    #entry-input:focus{border-color:#666}
+    #entry-input::placeholder{color:rgba(0,0,0,.22)}
+    #entry-submit{
+      background:none;border:1px solid #bbb;color:#555;
+      font-family:'Courier New',monospace;font-size:11px;letter-spacing:.18em;
+      padding:8px 24px;cursor:pointer;transition:all .3s;display:none
+    }
+    #entry-submit:hover{background:#111;color:#fff;border-color:#111}
+    #entry-loading{
+      font-family:'Courier New',monospace;font-size:11px;letter-spacing:.18em;
+      color:rgba(0,0,0,.35);display:none
+    }
+
+    /* Ambient floating particles on white */
+    .end-particle{
+      position:fixed;width:2px;height:2px;background:rgba(0,0,0,.06);
+      border-radius:50%;pointer-events:none;z-index:1;
+      animation:particleFloat 12s ease-in-out infinite
+    }
+    @keyframes particleFloat{
+      0%,100%{transform:translateY(0) translateX(0);opacity:0}
+      10%{opacity:1}
+      50%{transform:translateY(-80px) translateX(30px);opacity:.5}
+      90%{opacity:0}
+    }
+
+    /* ── Responsive: opening page on phones ── */
+    @media(max-width:520px){
+      #end-title{white-space:normal;text-align:center;justify-content:center;flex-wrap:wrap;font-size:clamp(16px,6vw,32px);letter-spacing:.18em}
+      #title-block.shifted{top:12%}
+      #entry-wrap{width:90vw;top:72%}
+      #entry-input{font-size:14px;padding:10px 4px}
+      #entry-submit{font-size:10px;padding:10px 28px;min-height:44px}
+      #end-subtitle{letter-spacing:.2em;font-size:clamp(8px,2vw,10px)}
+    }
+
+    @media(max-height:400px){
+      #title-block.shifted{top:8%}
+      #entry-wrap{top:65%}
+    }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="struggle-msg">give it more room</div>
+<div id="vol-wrap">
+  <span id="vol-label">vol</span>
+  <input id="vol-slider" type="range" min="0" max="1" step=".01" value=".5"/>
+</div>
+<div id="cp-tooltip"></div>
+<div id="end-overlay"></div>
+<div id="end-ui">
+  <div id="title-block">
+    <div id="end-title" data-text="The Butterfly Effect"></div>
+    <div id="title-line"></div>
+    <div id="end-subtitle">every choice echoes</div>
+  </div>
+  <div id="entry-wrap">
+    <input id="entry-input" type="text" placeholder="Enter your beginnings…" autocomplete="off" spellcheck="false"/>
+    <button id="entry-submit">BEGIN →</button>
+    <div id="entry-loading">weaving your world…</div>
+  </div>
+</div>
+
+<script>
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+const canvas   = document.getElementById('c');
+const ctx      = canvas.getContext('2d');
+const msg      = document.getElementById('struggle-msg');
+const endOver  = document.getElementById('end-overlay');
+const endUI    = document.getElementById('end-ui');
+const entryIn  = document.getElementById('entry-input');
+const entrySub = document.getElementById('entry-submit');
+const entryLd  = document.getElementById('entry-loading');
+const tooltip  = document.getElementById('cp-tooltip');
+
+let W, H;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+function lerp(t,a,b){ return a+t*(b-a); }
+function fade(t){ return t*t*t*(t*(t*6-15)+10); }
+
+// Perlin noise
+const perm = new Uint8Array(512);
+(()=>{
+  for(let i=0;i<256;i++) perm[i]=i;
+  for(let i=255;i>0;i--){ const j=Math.random()*(i+1)|0; [perm[i],perm[j]]=[perm[j],perm[i]]; }
+  for(let i=0;i<256;i++) perm[256+i]=perm[i];
+})();
+function g1(h,x){ h&=3; const v=(h<2)?x:-x; return (h&1)?-v:v; }
+function noise(x){
+  const X=Math.floor(x)&255, xf=x-Math.floor(x), u=fade(xf);
+  return lerp(u, g1(perm[X],xf), g1(perm[X+1],xf-1));
+}
+
+// ── Audio ─────────────────────────────────────────────────────────────────────
+let audioCtx=null, masterGain=null;
+let screamBuf=null, screamSrc=null, screamGainNode=null;
+let mp3Ok=false, mp3Fail=false;
+let screamNodes=null, screaming=false;
+let lastArea=W*H, lastShriekT=0;
+const volSlider = document.getElementById('vol-slider');
+
+function getAC(){
+  if(!audioCtx){
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    masterGain=audioCtx.createGain();
+    masterGain.gain.value=parseFloat(volSlider.value);
+    masterGain.connect(audioCtx.destination);
+    mp3Fail=true; // Force fallback to procedural oscillators immediately
+  }
+  return audioCtx;
+}
+volSlider.addEventListener('input',()=>{
+  if(masterGain) masterGain.gain.setTargetAtTime(parseFloat(volSlider.value),audioCtx.currentTime,.02);
+});
+function startScream(s){
+  if(mp3Ok&&!mp3Fail){
+    if(screaming) return; screaming=true;
+    const ac=getAC();
+    screamGainNode=ac.createGain(); screamGainNode.gain.value=1; screamGainNode.connect(masterGain);
+    screamSrc=ac.createBufferSource(); screamSrc.buffer=screamBuf; screamSrc.loop=true;
+    screamSrc.connect(screamGainNode); screamSrc.start(0);
+  } else if(mp3Fail){
+    if(screaming){ if(screamNodes){ const f=900+s*1800; screamNodes.o1.frequency.setTargetAtTime(f,audioCtx.currentTime,.05); } return; }
+    screaming=true; const ac=getAC();
+    const o1=ac.createOscillator(),o2=ac.createOscillator(),dist=ac.createWaveShaper(),gn=ac.createGain(),lfo=ac.createOscillator(),lg=ac.createGain();
+    const cv=new Float32Array(512); for(let i=0;i<512;i++){const x=(i*2)/512-1;cv[i]=(Math.PI+320)*x/(Math.PI+320*Math.abs(x));} dist.curve=cv;
+    const f=900+s*1800; o1.type='sawtooth';o1.frequency.value=f; o2.type='square';o2.frequency.value=f*1.012;
+    lfo.type='sine';lfo.frequency.value=7+s*14;lg.gain.value=60+s*120; gn.gain.value=.18+s*.22;
+    lfo.connect(lg);lg.connect(o1.frequency);lg.connect(o2.frequency);
+    o1.connect(dist);o2.connect(dist);dist.connect(gn);gn.connect(masterGain);
+    o1.start();o2.start();lfo.start();
+    screamNodes={o1,o2,lfo,lg,dist,gain:gn};
+  }
+}
+function stopScream(){
+  if(!screaming) return; screaming=false;
+  if(screamSrc){try{screamGainNode.gain.setTargetAtTime(0,audioCtx.currentTime,.12);const s=screamSrc;setTimeout(()=>{try{s.stop();}catch(e){}},600);}catch(e){} screamSrc=null;screamGainNode=null;}
+  if(screamNodes){screamNodes.gain.gain.setTargetAtTime(0,audioCtx.currentTime,.08);const n=screamNodes;setTimeout(()=>{try{n.o1.stop();n.o2.stop();n.lfo.stop();}catch(e){}},400);screamNodes=null;}
+}
+function playShriek(){
+  const ac=getAC();
+  if(mp3Ok&&!mp3Fail){ const s=ac.createBufferSource();s.buffer=screamBuf;s.loop=false; const g=ac.createGain();g.gain.value=1;s.connect(g);g.connect(masterGain);s.start(0); }
+  else {
+    const o=ac.createOscillator(),g=ac.createGain(),d=ac.createWaveShaper();
+    const cv=new Float32Array(512);for(let i=0;i<512;i++){const x=(i*2)/512-1;cv[i]=(Math.PI+280)*x/(Math.PI+280*Math.abs(x));}d.curve=cv;
+    o.type='sawtooth';o.frequency.setValueAtTime(600+Math.random()*400,ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(2200+Math.random()*600,ac.currentTime+.08);
+    o.frequency.exponentialRampToValueAtTime(400,ac.currentTime+.45);
+    g.gain.setValueAtTime(.22,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.5);
+    o.connect(d);d.connect(g);g.connect(masterGain);o.start();o.stop(ac.currentTime+.5);
+  }
+}
+function playRetroEnd(){
+  const ac=getAC(); const g=ac.createGain();g.gain.value=.2;g.connect(masterGain);
+  [{f:261.6,t:.00,d:.10},{f:329.6,t:.10,d:.10},{f:392,t:.20,d:.10},{f:523.3,t:.30,d:.12},
+   {f:523.3,t:.47,d:.18},{f:659.3,t:.47,d:.18},{f:784,t:.47,d:.18},
+   {f:523.3,t:.70,d:.14},{f:659.3,t:.70,d:.14},{f:784,t:.70,d:.14},
+   {f:261.6,t:.88,d:1.1},{f:392,t:.88,d:1.1},{f:523.3,t:.88,d:1.1},{f:659.3,t:.88,d:1.1},
+   {f:1046.5,t:.88,d:.28},{f:1318.5,t:1.04,d:.28},{f:1568,t:1.20,d:.55}
+  ].forEach(({f,t,d})=>{
+    const o=ac.createOscillator(),og=ac.createGain();o.type='square';o.frequency.value=f;
+    og.gain.setValueAtTime(0,ac.currentTime+t);og.gain.linearRampToValueAtTime(.55,ac.currentTime+t+.015);
+    og.gain.setValueAtTime(.55,ac.currentTime+t+d-.04);og.gain.linearRampToValueAtTime(0,ac.currentTime+t+d);
+    o.connect(og);og.connect(g);o.start(ac.currentTime+t);o.stop(ac.currentTime+t+d+.02);
+  });
+}
+
+// ── Main butterfly state ──────────────────────────────────────────────────────
+let prevSX=window.screenX, prevSY=window.screenY;
+let smoothWX=window.screenX, smoothWY=window.screenY;
+const b={
+  wx:window.screenX+window.innerWidth*.5, wy:window.screenY+window.innerHeight*.5,
+  dx:window.screenX+window.innerWidth*.5, dy:window.screenY+window.innerHeight*.5,
+  vx:2.2,vy:-1.5,angle:0,wingPhase:0,orbitPhase:Math.random()*Math.PI*2,trail:[]
+};
+
+const AREA_FULL=900*600, AREA_SUFFER=250*200;
+function sf(){ return 1-Math.min(1,Math.max(0,(W*H-AREA_SUFFER)/(AREA_FULL-AREA_SUFFER))); }
+
+// ── Checkpoint butterflies ───────────────────────────────────────────────────
+let checkpoints = [];
+let mouseX=0, mouseY=0, hoveredCP=null;
+
+const CP_COLORS = {
+  achievement:'#FFD700', death:'#FF3322', discovery:'#00CCFF',
+  choice:'#AA66FF', birth:'#44EE88', manual_save:'#AABBCC', default:'#FFFFFF'
+};
+
+function hashId(s, seed){
+  seed = seed || 0;
+  let h=seed; for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
+  return Math.abs(h);
+}
+function cpPos(id){
+  // Use two different seeds so X and Y are independent
+  const hx=hashId(id, 7), hy=hashId(id, 131);
+  const x=.1+(hx%10000)/10000*.8;
+  const y=.1+(hy%10000)/10000*.8;
+  return {x:x*W, y:y*H};
+}
+
+async function loadCheckpoints(){
+  try{
+    const r=await fetch('/api/checkpoints');
+    if(!r.ok){ console.warn('Checkpoint fetch failed:', r.status); return; }
+    const data=await r.json();
+    if(!Array.isArray(data)){ console.warn('Checkpoints response is not an array'); return; }
+    checkpoints=data.filter(cp => cp && cp.id && cp.type).map(cp=>{
+      const basePos=cpPos(cp.id);
+      return {
+        ...cp,
+        description: cp.description || 'Unknown moment',
+        phase:Math.random()*Math.PI*2,
+        wPhase:Math.random()*Math.PI*2,
+        wx: basePos.x, wy: basePos.y,
+        baseX: basePos.x, baseY: basePos.y,
+        driftSeed: Math.random()*1000,
+        angle: 0,
+        trail: [],
+      };
+    });
+  }catch(e){ console.warn('Could not load checkpoints',e); }
+}
+loadCheckpoints();
+
+function drawCPButterfly(cx,cy,wPhase,color,scale){
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.scale(scale,scale);
+
+  const wScale=Math.abs(Math.cos(wPhase));
+  const [rc,gc,bc]=hexToRgb(color);
+  ctx.shadowBlur=14;ctx.shadowColor=`rgba(${rc},${gc},${bc},.7)`;
+
+  for(const side of[-1,1]){
+    ctx.save();ctx.scale(side,1);ctx.scale(wScale,1);
+    ctx.beginPath();ctx.moveTo(0,0);
+    ctx.bezierCurveTo(7,-11,30,-26,34,-13);
+    ctx.bezierCurveTo(36,-3,19,4,0,7);
+    ctx.closePath();ctx.fillStyle=`rgba(${rc},${gc},${bc},.85)`;ctx.fill();
+    ctx.beginPath();ctx.moveTo(0,7);
+    ctx.bezierCurveTo(7,13,25,24,20,33);
+    ctx.bezierCurveTo(14,42,-2,27,0,17);
+    ctx.closePath();ctx.fillStyle=`rgba(${rc},${gc},${bc},.65)`;ctx.fill();
+    ctx.restore();
+  }
+  ctx.beginPath();ctx.ellipse(0,11,1.6,12,0,0,Math.PI*2);
+  ctx.fillStyle=`rgba(${rc},${gc},${bc},.9)`;ctx.fill();
+  ctx.restore();
+}
+
+function hexToRgb(hex){
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return [r,g,b];
+}
+
+// Check if point hits a butterfly or its trail
+function hitsCPButterfly(px, py, cp){
+  // Direct hit on butterfly body
+  const dx=px-cp.wx, dy=py-cp.wy;
+  if(Math.sqrt(dx*dx+dy*dy)<36) return true;
+  // Hit on trail
+  if(cp.trail){
+    for(const pt of cp.trail){
+      const tdx=px-pt.x, tdy=py-pt.y;
+      if(Math.sqrt(tdx*tdx+tdy*tdy)<10) return true;
+    }
+  }
+  return false;
+}
+
+canvas.addEventListener('mousemove',e=>{
+  mouseX=e.clientX; mouseY=e.clientY;
+  hoveredCP=null;
+  for(const cp of checkpoints){
+    if(hitsCPButterfly(mouseX, mouseY, cp)){
+      hoveredCP=cp;
+      break;
+    }
+  }
+  if(hoveredCP){
+    const typeLine=hoveredCP.type.toUpperCase();
+    const descLine=hoveredCP.description;
+    const saveLine=hoveredCP.save_title||'';
+    tooltip.textContent=`${typeLine}\n${descLine}\n\n${saveLine}`;
+    tooltip.style.left=Math.min(hoveredCP.wx+20,W-220)+'px';
+    tooltip.style.top=Math.max(hoveredCP.wy-60,10)+'px';
+    tooltip.style.opacity='1';
+    canvas.style.cursor='pointer';
+  } else {
+    tooltip.style.opacity='0';
+    canvas.style.cursor='default';
+  }
+});
+
+// ── Stars ─────────────────────────────────────────────────────────────────────
+const stars=[];
+for(let i=0;i<120;i++) stars.push({x:Math.random(),y:Math.random(),r:.3+Math.random()*.8,phase:Math.random()*Math.PI*2,speed:.003+Math.random()*.006});
+
+// ── Ripples ───────────────────────────────────────────────────────────────────
+const ripples=[];
+function spawnRipple(x,y){
+  ripples.push({x,y,radius:0,maxRadius:120+Math.random()*60,born:performance.now(),life:600});
+}
+
+// ── End sequence state ────────────────────────────────────────────────────────
+const END={active:false,scale:1,white:0,phase:'idle',startTime:0};
+
+function triggerEnd(){
+  if(END.active) return;
+  END.active=true;END.phase='expanding';END.startTime=performance.now();
+  stopScream(); playRetroEnd();
+}
+function hitMain(px,py){
+  const cx=b.dx-window.screenX, cy=b.dy-window.screenY;
+  const dx=px-cx,dy=py-cy;
+  return Math.sqrt(dx*dx+dy*dy)<42*Math.max(1,END.scale);
+}
+
+canvas.addEventListener('click',e=>{
+  getAC();
+  // Spawn ripple on any click
+  if(!END.active) spawnRipple(e.clientX, e.clientY);
+  for(const cp of checkpoints){
+    if(hitsCPButterfly(e.clientX, e.clientY, cp)){
+      loadFromCheckpoint(cp.id);
+      return;
+    }
+  }
+  if(!END.active && hitMain(e.clientX,e.clientY)) triggerEnd();
+});
+
+async function loadFromCheckpoint(cpId){
+  tooltip.style.opacity='0';
+  // Flash and navigate
+  endOver.style.transition='opacity .4s';
+  endOver.style.opacity='.6';
+  try{
+    const r=await fetch(`/api/checkpoint/${cpId}/load`,{method:'POST'});
+    const data=await r.json();
+    if(data.save_id) window.location.href=`/game?save_id=${data.save_id}`;
+    else { endOver.style.opacity='0'; alert('Could not load checkpoint: '+(data.error||'unknown error')); }
+  }catch(e){
+    endOver.style.opacity='0';
+    alert('Error: '+e);
+  }
+}
+
+// ── Title animation ──────────────────────────────────────────────────────────
+function animateTitle(){
+  const titleEl = document.getElementById('end-title');
+  const text = 'The Butterfly Effect';
+  titleEl.innerHTML = '';
+  [...text].forEach((ch, i) => {
+    const span = document.createElement('span');
+    if(ch === ' '){
+      span.className = 'title-letter space';
+    } else {
+      span.className = 'title-letter';
+      span.textContent = ch;
+    }
+    span.style.animationDelay = (i * 0.045) + 's';
+    titleEl.appendChild(span);
+  });
+}
+
+function spawnParticles(){
+  const ui = document.getElementById('end-ui');
+  for(let i = 0; i < 20; i++){
+    const p = document.createElement('div');
+    p.className = 'end-particle';
+    p.style.left = (Math.random() * 100) + '%';
+    p.style.top = (30 + Math.random() * 60) + '%';
+    p.style.animationDelay = (Math.random() * 12) + 's';
+    p.style.animationDuration = (8 + Math.random() * 8) + 's';
+    p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+    ui.appendChild(p);
+  }
+}
+
+// ── Entry form ────────────────────────────────────────────────────────────────
+entryIn.addEventListener('input',()=>{
+  entrySub.style.display=entryIn.value.trim()?'block':'none';
+});
+entryIn.addEventListener('keydown',e=>{ if(e.key==='Enter'&&entryIn.value.trim()) submitBeginning(); });
+entrySub.addEventListener('click',submitBeginning);
+
+async function submitBeginning(){
+  const text=entryIn.value.trim();
+  if(!text) return;
+  entrySub.style.display='none';
+  entryLd.style.display='block';
+  entryLd.textContent='weaving your world…';
+
+  const MAX_RETRIES = 2;
+  for(let attempt=0; attempt<=MAX_RETRIES; attempt++){
+    try{
+      if(attempt > 0){
+        entryLd.textContent=`retrying… (attempt ${attempt+1})`;
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
+      const r=await fetch('/api/game/new',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opening:text})});
+      const data=await r.json();
+      if(data.error){
+        if(attempt < MAX_RETRIES) continue;
+        entryLd.textContent='error: '+data.error;
+        entrySub.style.display='block';
+        return;
+      }
+      window.location.href=`/game?save_id=${data.save_id}`;
+      return;
+    }catch(e){
+      if(attempt < MAX_RETRIES) continue;
+      entryLd.textContent='connection error. is flask running?';
+      entrySub.style.display='block';
+    }
+  }
+}
+
+// ── Draw main butterfly ───────────────────────────────────────────────────────
+function drawMain(cx,cy,heading,wPhase,s,white,scaleMul){
+  white=white||0; scaleMul=scaleMul||1;
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(heading);ctx.scale(scaleMul,scaleMul);
+  const wScale=Math.abs(Math.cos(wPhase));
+  const r=Math.round(lerp(white,lerp(s,130,255),255));
+  const g=Math.round(lerp(white,lerp(s,70,80),255));
+  const bc=Math.round(lerp(white,lerp(s,230,15),255));
+  const alpha=.78+.22*Math.abs(Math.sin(wPhase*2));
+  ctx.shadowBlur=20+s*26;ctx.shadowColor=`rgba(${r},${g},${bc},.55)`;
+  for(const side of[-1,1]){
+    ctx.save();ctx.scale(side,1);ctx.scale(wScale,1);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(9,-14,38,-32,42,-16);ctx.bezierCurveTo(44,-4,24,5,0,9);ctx.closePath();
+    ctx.fillStyle=`rgba(${r},${g},${bc},${(alpha*.9).toFixed(2)})`;ctx.fill();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(6,-9,24,-20,30,-11);
+    ctx.strokeStyle=`rgba(${r},${g},${bc},.28)`;ctx.lineWidth=.9;ctx.stroke();
+    ctx.beginPath();ctx.arc(20,-14,3.5,0,Math.PI*2);ctx.fillStyle='rgba(0,0,0,.35)';ctx.fill();
+    ctx.beginPath();ctx.arc(20,-14,2,0,Math.PI*2);ctx.fillStyle=`rgba(${Math.min(255,r+80)},${Math.min(255,g+100)},${bc},.5)`;ctx.fill();
+    ctx.beginPath();ctx.moveTo(0,9);ctx.bezierCurveTo(9,16,32,30,26,42);ctx.bezierCurveTo(18,52,-2,34,0,22);ctx.closePath();
+    ctx.fillStyle=`rgba(${r},${g},${bc},${(alpha*.72).toFixed(2)})`;ctx.fill();
+    ctx.restore();
+  }
+  ctx.beginPath();ctx.ellipse(0,14,2,16,0,0,Math.PI*2);
+  const bg=ctx.createLinearGradient(0,-2,0,28);
+  bg.addColorStop(0,`rgba(${r+60},${g+60},${bc+60},.95)`);bg.addColorStop(1,`rgba(${r},${g},${bc},.6)`);
+  ctx.fillStyle=bg;ctx.fill();
+  for(const side of[-1,1]){
+    ctx.beginPath();ctx.moveTo(side,-3);ctx.quadraticCurveTo(side*8,-16,side*13,-28);
+    ctx.strokeStyle=`rgba(${r+50},${g+50},${bc+50},.55)`;ctx.lineWidth=.9;ctx.stroke();
+    ctx.beginPath();ctx.arc(side*13,-28,2,0,Math.PI*2);ctx.fillStyle=`rgba(${r+50},${g+50},${bc+50},.75)`;ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+let t=0;
+let _hidden=false;
+document.addEventListener('visibilitychange',()=>{ _hidden=document.hidden; });
+
+function tick(){
+  if(_hidden){ requestAnimationFrame(tick); return; }
+  const s=sf(), now=performance.now();
+
+  if(!END.active){ t+=.014; b.orbitPhase+=.019+s*.005; b.wingPhase+=.09+s*.24; }
+  else { b.wingPhase+=.18; }
+
+  const curWX=window.screenX, curWY=window.screenY;
+  const moved=curWX!==prevSX||curWY!==prevSY;
+  smoothWX=lerp(.07,smoothWX,curWX); smoothWY=lerp(.07,smoothWY,curWY);
+  prevSX=curWX; prevSY=curWY;
+
+  if(!END.active){
+    const wL=smoothWX,wT=smoothWY,wR=wL+W,wB=wT+H,mg=52;
+    const n1=noise(t*.55)*Math.PI*2, n2=noise(t*.28+77)*Math.PI, n3=noise(t*.13+200)*Math.PI*.5;
+    const lx=Math.sin(b.orbitPhase)*(2.2-s*1.1), ly=Math.sin(b.orbitPhase*2)*(1.5-s*.7);
+    const spd=2.6-s*1.0;
+    b.vx=lerp(.052+s*.042,b.vx,Math.cos(n1+n2*.35+n3*.15)*spd+lx);
+    b.vy=lerp(.052+s*.042,b.vy,Math.sin(n1+n2*.35+n3*.15)*spd+ly);
+    if(s>.2&&Math.random()<s*.22){b.vx+=(Math.random()-.5)*s*7;b.vy+=(Math.random()-.5)*s*7;}
+    const rep=.22+s*.30;
+    if(b.wx<wL+mg) b.vx+=rep*(wL+mg-b.wx)/mg;
+    if(b.wx>wR-mg) b.vx-=rep*(b.wx-(wR-mg))/mg;
+    if(b.wy<wT+mg) b.vy+=rep*(wT+mg-b.wy)/mg;
+    if(b.wy>wB-mg) b.vy-=rep*(b.wy-(wB-mg))/mg;
+    const sp2=Math.sqrt(b.vx*b.vx+b.vy*b.vy),mx=3.9+s*.7;
+    if(sp2>mx){b.vx=b.vx/sp2*mx;b.vy=b.vy/sp2*mx;}
+    b.wx+=b.vx;b.wy+=b.vy;
+    b.wx=Math.max(wL+6,Math.min(wR-6,b.wx));b.wy=Math.max(wT+6,Math.min(wB-6,b.wy));
+    b.dx=lerp(moved?.055:.18,b.dx,b.wx);b.dy=lerp(moved?.055:.18,b.dy,b.wy);
+    b.angle=lerp(.10,b.angle,Math.atan2(b.vy,b.vx)+Math.PI*.5);
+    // Scream
+    const area=W*H,shrink=area<lastArea-200;
+    if(s>.3) startScream(s);
+    else if(shrink&&now-lastShriekT>300){stopScream();playShriek();lastShriekT=now;}
+    else stopScream();
+    lastArea=area;
+  }
+
+  const cx=b.dx-curWX, cy=b.dy-curWY;
+  b.trail.push({x:cx,y:cy});
+  if(b.trail.length>24) b.trail.shift();
+
+  // End sequence timing
+  if(END.active){
+    const el=(now-END.startTime)/1000;
+    if(END.phase==='expanding'){
+      END.white=Math.min(1,el/.65);END.scale=1+END.white*6.5;
+      if(el>.55) END.phase='flashing';
+    }
+    if(END.phase==='flashing'){
+      const p=Math.min(1,(el-.55)/.85);
+      endOver.style.opacity=p;
+      if(el>1.4){
+        END.phase='done'; endOver.style.opacity=0;
+        endUI.classList.add('visible');
+        // Animate title letters
+        animateTitle();
+        // Add ambient particles
+        spawnParticles();
+        // Shift title up after delay to make room for input
+        setTimeout(()=>{
+          document.getElementById('title-block').classList.add('shifted');
+        }, 2000);
+        setTimeout(()=>entryIn.focus(),2800);
+      }
+    }
+  }
+
+  // ── Ripple push force on checkpoint butterflies ──
+  for(let ri=ripples.length-1;ri>=0;ri--){
+    const rip=ripples[ri];
+    const age=(now-rip.born)/rip.life;
+    if(age>1){ripples.splice(ri,1);continue;}
+    const waveFront=age*rip.maxRadius;
+    for(const cp of checkpoints){
+      const dx=cp.wx-rip.x, dy=cp.wy-rip.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<waveFront+30 && dist>waveFront-30 && dist>1){
+        const pushStr=6*(1-age)/Math.max(dist,20);
+        cp.wx+=dx*pushStr;
+        cp.wy+=dy*pushStr;
+      }
+    }
+  }
+
+  // Render
+  if(END.phase==='done'){ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);requestAnimationFrame(tick);return;}
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,W,H);
+
+  // ── Draw stars (batched) ──
+  ctx.fillStyle='rgba(255,255,255,.12)';
+  for(const star of stars){
+    star.phase+=star.speed;
+    const twinkle=.25+.75*(.5+.5*Math.sin(star.phase));
+    ctx.globalAlpha=twinkle*.22;
+    ctx.beginPath();ctx.arc(star.x*W,star.y*H,star.r,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // ── Draw ripples ──
+  for(const rip of ripples){
+    const age=(now-rip.born)/rip.life;
+    const r=age*rip.maxRadius;
+    const a=.35*(1-age);
+    ctx.beginPath();ctx.arc(rip.x,rip.y,r,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(155,126,255,${a.toFixed(2)})`;
+    ctx.lineWidth=1.5*(1-age);
+    ctx.stroke();
+    // Inner glow
+    ctx.beginPath();ctx.arc(rip.x,rip.y,r*.6,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(155,126,255,${(a*.3).toFixed(2)})`;
+    ctx.lineWidth=.5;
+    ctx.stroke();
+  }
+
+  // Trail (cached color)
+  const tr=Math.round(lerp(s,100,210)),tg=Math.round(lerp(s,55,60)),tb=Math.round(lerp(s,210,25));
+  for(let i=0;i<b.trail.length;i++){
+    const p=b.trail[i],frac=i/b.trail.length;
+    ctx.globalAlpha=frac*.16;
+    ctx.beginPath();ctx.arc(p.x,p.y,lerp(frac,.4,2.8),0,Math.PI*2);
+    ctx.fillStyle=`rgb(${tr},${tg},${tb})`;ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  drawMain(cx,cy,b.angle,b.wingPhase,sf(),END.white,END.scale);
+
+  // Checkpoint butterflies - wandering movement + glowy trail
+  for(const cp of checkpoints){
+    try{
+    cp.wPhase=(cp.wPhase||0)+.04;
+    cp.driftSeed=(cp.driftSeed||0)+.008;
+    if(!cp.trail) cp.trail=[];
+    
+    // Wider noise-based wandering
+    const driftX = noise(cp.driftSeed) * 150;
+    const driftY = noise(cp.driftSeed + 500) * 100;
+    const targetX = cp.baseX + driftX;
+    const targetY = cp.baseY + driftY;
+    
+    // Smooth interpolation
+    cp.wx = lerp(0.03, cp.wx, Math.max(30, Math.min(W-30, targetX)));
+    cp.wy = lerp(0.03, cp.wy, Math.max(30, Math.min(H-30, targetY)));
+    
+    // Record trail
+    cp.trail.push({x:cp.wx, y:cp.wy});
+    if(cp.trail.length>18) cp.trail.shift();
+    
+    const col=CP_COLORS[cp.type]||CP_COLORS.default;
+    const [rc,gc,bc]=hexToRgb(col);
+    const hovered=hoveredCP&&hoveredCP.id===cp.id;
+    
+    // Draw trail (no shadowBlur — GPU expensive)
+    for(let i=0;i<cp.trail.length;i++){
+      const pt=cp.trail[i];
+      const frac=i/cp.trail.length;
+      const r=2.5*frac + (hovered?1.5:0);
+      ctx.globalAlpha=frac*(hovered?.25:.12);
+      ctx.beginPath();ctx.arc(pt.x,pt.y,r,0,Math.PI*2);
+      ctx.fillStyle=`rgb(${rc},${gc},${bc})`;
+      ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    
+    const sc=hovered?.48:.38;
+    drawCPButterfly(cp.wx, cp.wy, cp.wPhase, col, sc);
+    }catch(e){
+      // Skip this butterfly if it causes a drawing error
+      console.warn('CP butterfly draw error:', e);
+    }
+  }
+
+  msg.style.opacity=(!END.active&&sf()>.3)?Math.min(1,(sf()-.3)/.4):0;
+  requestAnimationFrame(tick);
+}
+
+document.addEventListener('click',()=>getAC(),{once:true});
+document.addEventListener('keydown',()=>getAC(),{once:true});
+tick();
+</script>
+</body>
+</html>

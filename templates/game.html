@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>The Butterfly Effect · Adventure</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    :root{
+      --bg:#080808; --panel:#0e0e0e; --border:rgba(255,255,255,.08);
+      --text:#ddd; --dim:rgba(255,255,255,.35); --accent:#9b7eff;
+      --gold:#FFD700; --red:#FF3322; --cyan:#00CCFF; --green:#44EE88;
+      --font:'Share Tech Mono','Courier New',monospace;
+    }
+
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}
+
+    /* ── Layout ── */
+    #root{display:grid;height:100vh;grid-template-rows:48px 1fr 70px;grid-template-columns:1fr}
+    #header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);background:rgba(8,8,8,.95);backdrop-filter:blur(8px);z-index:10}
+    #header-title{font-size:13px;letter-spacing:.22em;text-transform:uppercase;font-weight:bold;text-decoration:underline;color:#ccc}
+    #header-btns{display:flex;gap:10px}
+    .hbtn{background:none;border:1px solid var(--border);color:var(--dim);font-family:var(--font);font-size:10px;letter-spacing:.14em;padding:5px 14px;cursor:pointer;transition:all .2s}
+    .hbtn:hover{border-color:#555;color:#eee}
+    .hbtn.danger:hover{border-color:var(--red);color:var(--red)}
+
+    #main{display:grid;grid-template-columns:42% 1fr;overflow:hidden}
+
+    /* ── Image Panel ── */
+    #img-panel{
+      border-right:1px solid var(--border);display:flex;flex-direction:column;
+      align-items:center;justify-content:center;overflow:hidden;position:relative;
+      background:#050508
+    }
+    #scene-img{width:100%;height:100%;object-fit:cover;display:none;transition:opacity .8s ease;opacity:0;position:absolute;inset:0;z-index:0}
+    #scene-img.loaded{opacity:1}
+    #scene-placeholder{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      width:100%;height:100%;padding:32px;text-align:center;gap:20px;position:relative;z-index:0;
+      background:linear-gradient(160deg, #0a0a18 0%, #0d0818 30%, #120a1a 60%, #0a0d18 100%);
+      animation:gradientShift 12s ease infinite
+    }
+    @keyframes gradientShift{
+      0%,100%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+    }
+    #scene-placeholder::before{
+      content:'';position:absolute;inset:0;
+      background:radial-gradient(circle at 30% 40%, rgba(155,126,255,.04) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(100,200,255,.03) 0%, transparent 50%);
+      animation:pulseGlow 6s ease-in-out infinite
+    }
+    @keyframes pulseGlow{
+      0%,100%{opacity:.5} 50%{opacity:1}
+    }
+    #scene-desc{
+      font-size:13px;color:rgba(155,126,255,.6);letter-spacing:.12em;line-height:2;
+      max-width:280px;text-transform:lowercase;font-style:italic
+    }
+    #scene-glyph{font-size:42px;opacity:.12;filter:grayscale(1)}
+    #scene-loading{
+      width:36px;height:36px;border:2px solid rgba(155,126,255,.1);
+      border-top-color:rgba(155,126,255,.5);border-radius:50%;
+      animation:spin .8s linear infinite;display:none
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #turn-badge{position:absolute;top:10px;left:12px;font-size:10px;color:var(--dim);letter-spacing:.14em;z-index:2;
+      background:rgba(0,0,0,.5);padding:3px 8px;border-radius:3px;backdrop-filter:blur(4px)}
+    /* Vignette overlay on the image */
+    #img-panel::after{
+      content:'';position:absolute;inset:0;
+      background:radial-gradient(ellipse at center, transparent 40%, rgba(8,8,8,.7) 100%);
+      pointer-events:none;z-index:1
+    }
+
+    /* ── Story Panel ── */
+    #story-panel{display:flex;flex-direction:column;overflow:hidden}
+    #story-scroll{flex:1;overflow-y:auto;padding:28px 32px;scroll-behavior:smooth}
+    #story-scroll::-webkit-scrollbar{width:3px}
+    #story-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1)}
+    .story-entry{margin-bottom:24px;animation:fadeUp .6s ease both;opacity:0}
+    .story-entry.player-action{color:var(--accent);font-size:12px;letter-spacing:.1em;border-left:2px solid rgba(155,126,255,.4);padding-left:12px;margin-bottom:14px;opacity:.8;animation:fadeUp .4s ease both}
+    .story-text{font-size:13px;line-height:2;letter-spacing:.06em;color:#d0d0d0;text-shadow:0 0 40px rgba(155,126,255,.04)}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── Choices ── */
+    #choices-wrap{
+      display:flex;flex-wrap:wrap;gap:8px;padding:0 32px 6px;
+      animation:fadeUp .5s ease .2s both
+    }
+    .choice-btn{
+      background:rgba(155,126,255,.06);
+      border:1px solid rgba(155,126,255,.25);
+      color:var(--accent);font-family:var(--font);font-size:11px;letter-spacing:.08em;
+      padding:8px 16px;cursor:pointer;transition:all .25s;border-radius:2px;
+      position:relative;overflow:hidden
+    }
+    .choice-btn::before{
+      content:'';position:absolute;inset:0;
+      background:linear-gradient(135deg, rgba(155,126,255,.08), transparent);
+      opacity:0;transition:opacity .25s
+    }
+    .choice-btn:hover{
+      background:rgba(155,126,255,.14);border-color:var(--accent);
+      box-shadow:0 0 16px rgba(155,126,255,.15);transform:translateY(-1px)
+    }
+    .choice-btn:hover::before{opacity:1}
+    .choice-btn:active{transform:translateY(0)}
+    @keyframes subtlePulse{
+      0%,100%{border-color:rgba(155,126,255,.25);box-shadow:none}
+      50%{border-color:rgba(155,126,255,.35);box-shadow:0 0 8px rgba(155,126,255,.06)}
+    }
+    .choice-btn{animation:subtlePulse 4s ease-in-out infinite}
+
+    /* ── Footer ── */
+    #footer{display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--border);background:rgba(8,8,8,.95);backdrop-filter:blur(8px)}
+    #action-input{
+      flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.12);
+      outline:none;color:var(--text);font-family:var(--font);font-size:13px;letter-spacing:.08em;
+      padding:8px 0;caret-color:var(--accent)
+    }
+    #action-input::placeholder{color:rgba(255,255,255,.18)}
+    #send-btn{background:none;border:1px solid rgba(155,126,255,.4);color:var(--accent);
+      font-family:var(--font);font-size:10px;letter-spacing:.14em;padding:7px 20px;cursor:pointer;transition:all .2s;border-radius:2px}
+    #send-btn:hover:not(:disabled){background:rgba(155,126,255,.12);border-color:var(--accent);box-shadow:0 0 12px rgba(155,126,255,.15)}
+    #send-btn:disabled{opacity:.3;cursor:default}
+    #or-label{color:var(--dim);font-size:9px;letter-spacing:.14em}
+
+    /* ── Loading bar ── */
+    #loading-bar{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--accent),#6366f1);width:0;transition:width .3s;z-index:100}
+
+    /* ── Checkpoint toast ── */
+    #cp-toast{
+      position:fixed;top:60px;right:20px;max-width:280px;z-index:200;
+      background:rgba(10,10,10,.92);border:1px solid rgba(255,255,255,.12);
+      padding:14px 18px;border-radius:4px;backdrop-filter:blur(10px);
+      opacity:0;transform:translateY(-10px);
+      transition:opacity .4s, transform .4s;pointer-events:none
+    }
+    #cp-toast.show{opacity:1;transform:translateY(0)}
+    #cp-toast .ct-label{font-size:9px;letter-spacing:.2em;color:var(--dim);margin-bottom:6px}
+    #cp-toast .ct-type{font-size:10px;letter-spacing:.15em;margin-bottom:4px}
+    #cp-toast .ct-desc{font-size:13px;color:#eee;letter-spacing:.08em}
+    #cp-toast .ct-type.achievement{color:var(--gold)}
+    #cp-toast .ct-type.death{color:var(--red)}
+    #cp-toast .ct-type.discovery{color:var(--cyan)}
+    #cp-toast .ct-type.choice{color:#AA66FF}
+    #cp-toast .ct-type.birth{color:var(--green)}
+    #cp-toast .ct-type.manual_save{color:#AABBCC}
+
+    /* ── End modal ── */
+    #end-modal{
+      position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;
+      display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)
+    }
+    #end-modal.open{display:flex}
+    #end-box{
+      background:#0c0c0c;border:1px solid rgba(255,255,255,.12);
+      padding:40px 48px;text-align:center;max-width:380px;border-radius:4px
+    }
+    #end-box h2{font-size:14px;letter-spacing:.2em;margin-bottom:12px;color:#ccc}
+    #end-box p{font-size:11px;color:var(--dim);letter-spacing:.1em;line-height:1.7;margin-bottom:28px}
+    .modal-btns{display:flex;gap:12px;justify-content:center}
+    .modal-btns button{background:none;font-family:var(--font);font-size:11px;letter-spacing:.14em;padding:9px 22px;cursor:pointer;transition:all .2s;border-radius:2px}
+    #confirm-end{border:1px solid rgba(255,51,34,.5);color:var(--red)}
+    #confirm-end:hover{background:rgba(255,51,34,.12)}
+    #cancel-end{border:1px solid var(--border);color:var(--dim)}
+    #cancel-end:hover{border-color:#666;color:#eee}
+
+    /* ── Error banner ── */
+    #err-banner{
+      position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+      background:rgba(255,51,34,.1);border:1px solid rgba(255,51,34,.35);
+      color:var(--red);font-family:var(--font);font-size:11px;letter-spacing:.1em;
+      padding:10px 20px;display:none;z-index:150;border-radius:3px;backdrop-filter:blur(6px);
+      align-items:center;gap:12px;max-width:90vw
+    }
+    #err-banner.show{display:flex}
+    #err-dismiss{background:none;border:1px solid rgba(255,51,34,.4);color:var(--red);font-family:var(--font);font-size:9px;
+      padding:3px 10px;cursor:pointer;border-radius:2px;letter-spacing:.1em;white-space:nowrap}
+    #err-dismiss:hover{background:rgba(255,51,34,.15)}
+    #err-msg{flex:1}
+
+    /* ── Responsive: tablets / smaller laptops ── */
+    @media(max-width:900px){
+      #main{grid-template-columns:35% 1fr}
+      #story-scroll{padding:20px 22px}
+      #choices-wrap{padding:0 22px 6px}
+      .story-text{font-size:12px}
+    }
+
+    /* ── Responsive: phones / narrow windows ── */
+    @media(max-width:680px){
+      #root{grid-template-rows:44px 1fr 56px}
+      #main{grid-template-columns:1fr;grid-template-rows:180px 1fr}
+      #img-panel{border-right:none;border-bottom:1px solid var(--border)}
+      #header{padding:0 12px}
+      #header-title{font-size:11px;letter-spacing:.14em}
+      .hbtn{font-size:9px;padding:4px 10px}
+      #story-scroll{padding:14px 16px}
+      .story-text{font-size:12px;line-height:1.75}
+      .story-entry.player-action{font-size:11px;padding-left:8px}
+      #choices-wrap{padding:0 16px 6px;gap:6px}
+      .choice-btn{font-size:10px;padding:7px 12px}
+      #footer{padding:0 12px;gap:8px}
+      #action-input{font-size:12px}
+      #send-btn{font-size:9px;padding:6px 14px}
+      #turn-label{display:none}
+      #scene-desc{font-size:10px;max-width:240px}
+      #scene-glyph{font-size:32px}
+      #cp-toast{right:10px;left:10px;max-width:none}
+      #end-box{padding:28px 24px;margin:0 16px}
+    }
+
+    /* ── Responsive: very small phones ── */
+    @media(max-width:400px){
+      #root{grid-template-rows:40px 1fr 50px}
+      #main{grid-template-rows:140px 1fr}
+      #header-title{font-size:9px;letter-spacing:.1em}
+      .hbtn{font-size:8px;padding:3px 8px;letter-spacing:.08em}
+      .story-text{font-size:11px;line-height:1.7}
+      #story-scroll{padding:10px 12px}
+      #choices-wrap{padding:0 12px 4px}
+      .choice-btn{font-size:9px;padding:6px 10px}
+      #action-input{font-size:11px}
+      #send-btn{font-size:8px;padding:5px 10px}
+    }
+
+    /* ── Responsive: short windows (landscape phone) ── */
+    @media(max-height:480px){
+      #root{grid-template-rows:40px 1fr 48px}
+      #main{grid-template-columns:35% 1fr;grid-template-rows:1fr}
+      #img-panel{border-right:1px solid var(--border);border-bottom:none}
+    }
+
+    /* ── Time-travel butterfly ── */
+    #time-butterfly{
+      position:fixed;z-index:250;cursor:pointer;pointer-events:none;
+      opacity:0;transition:opacity .8s ease;
+      left:0;top:0;width:60px;height:60px;
+      display:flex;justify-content:center;align-items:center;
+    }
+    #time-butterfly.visible{
+      opacity:1;pointer-events:all;
+      animation: tbPathFlight 14s ease-in-out forwards;
+    }
+    #tb-canvas{
+      width:60px;height:60px;
+      animation: tbFloat 3s ease-in-out infinite!important;
+      transition: transform .3s;
+    }
+    #time-butterfly:hover #tb-canvas{
+      transform: scale(1.3);
+      animation-play-state: paused!important;
+    }
+    @keyframes tbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+    @keyframes tbPathFlight{
+      0% { transform: translate(-10vw, 70vh) scale(0.6) rotate(15deg); }
+      25% { transform: translate(30vw, 25vh) scale(0.9) rotate(-10deg); }
+      50% { transform: translate(60vw, 65vh) scale(1.1) rotate(5deg); }
+      75% { transform: translate(85vw, 20vh) scale(1) rotate(-15deg); }
+      100% { transform: translate(110vw, 50vh) scale(0.8) rotate(0deg); }
+    }
+  </style>
+</head>
+<body>
+<div id="loading-bar"></div>
+
+<div id="root">
+  <header id="header">
+    <div id="header-title">The Butterfly Effect</div>
+    <div id="header-btns">
+      <div id="turn-label" style="font-size:10px;color:var(--dim);letter-spacing:.14em;align-self:center;margin-right:6px"></div>
+      <button class="hbtn" id="save-btn">SAVE</button>
+      <button class="hbtn danger" id="end-btn">END GAME</button>
+    </div>
+  </header>
+
+  <div id="main">
+    <div id="img-panel">
+      <div id="turn-badge"></div>
+      <img id="scene-img" alt="Scene"/>
+      <div id="scene-placeholder">
+        <div id="scene-loading"></div>
+        <div id="scene-glyph">🪶</div>
+        <div id="scene-desc">your scene will appear here</div>
+      </div>
+    </div>
+
+    <div id="story-panel">
+      <div id="story-scroll"></div>
+      <div id="choices-wrap"></div>
+    </div>
+  </div>
+
+  <footer id="footer">
+    <input id="action-input" type="text" placeholder="or type your own action…" autocomplete="off" spellcheck="false"/>
+    <button id="send-btn">SEND</button>
+  </footer>
+</div>
+
+<!-- Checkpoint toast -->
+<div id="cp-toast">
+  <div class="ct-label">⭐ SIGNIFICANT MOMENT</div>
+  <div class="ct-type" id="ct-type"></div>
+  <div class="ct-desc" id="ct-desc"></div>
+</div>
+
+<!-- End modal -->
+<div id="end-modal">
+  <div id="end-box">
+    <h2>END YOUR JOURNEY?</h2>
+    <p>Your story will be preserved.<br/>All significant moments become butterflies<br/>waiting on the home screen.</p>
+    <div class="modal-btns">
+      <button id="confirm-end">YES, END IT</button>
+      <button id="cancel-end">CONTINUE…</button>
+    </div>
+  </div>
+</div>
+
+<div id="err-banner"><span id="err-msg"></span><button id="err-dismiss" onclick="hideErr()">DISMISS</button></div>
+
+<!-- Time-travel butterfly -->
+<div id="time-butterfly">
+  <canvas id="tb-canvas" width="60" height="60"></canvas>
+</div>
+
+<script>
+// ── Init ──────────────────────────────────────────────────────────────────────
+const params   = new URLSearchParams(location.search);
+const saveId   = params.get('save_id');
+if(!saveId){ location.href='/'; }
+
+const storyScroll = document.getElementById('story-scroll');
+const choicesWrap = document.getElementById('choices-wrap');
+const actionInput = document.getElementById('action-input');
+const sendBtn     = document.getElementById('send-btn');
+const sceneImg    = document.getElementById('scene-img');
+const scenePlaceholder = document.getElementById('scene-placeholder');
+const sceneDesc   = document.getElementById('scene-desc');
+const loadBar     = document.getElementById('loading-bar');
+const cpToast     = document.getElementById('cp-toast');
+const ctType      = document.getElementById('ct-type');
+const ctDesc      = document.getElementById('ct-desc');
+const endModal    = document.getElementById('end-modal');
+const turnBadge   = document.getElementById('turn-badge');
+const turnLabel   = document.getElementById('turn-label');
+const errBanner   = document.getElementById('err-banner');
+
+let currentTurn = 0;
+let isLoading   = false;
+let _lastFailedAction = null; // for retry
+
+// ── Load initial game state ───────────────────────────────────────────────────
+async function init(){
+  setLoading(true);
+  try{
+    const r    = await fetch(`/api/game/${saveId}`);
+    const data = await r.json();
+    if(data.error){ showErr(data.error); return; }
+
+    currentTurn = data.current_turn || 1;
+    updateTurn();
+
+    // Replay history into story panel
+    const hist = data.history || [];
+    let lastScene = null;
+    for(let i=0;i<hist.length;i++){
+      const msg=hist[i];
+      if(msg.role==='user' && i>0){
+        addPlayerEntry(msg.content);
+      } else if(msg.role==='assistant'){
+        const parsed = parseResponse(msg.content);
+        addStoryEntry(parsed.story, false);
+        if(parsed.scene) lastScene = parsed.scene;
+      }
+    }
+
+    // Show image for last scene
+    if(lastScene) fetchAndShowImage(lastScene);
+    else if(data.last_image_path) setImage(data.last_image_path);
+
+    // Show choices from the last assistant message
+    if(hist.length>0){
+      const lastAssistant = hist.filter(m=>m.role==='assistant').pop();
+      if(lastAssistant){
+        const parsed = parseResponse(lastAssistant.content);
+        if(parsed.choices && parsed.choices.length>0) renderChoices(parsed.choices);
+      }
+    }
+
+    scrollBottom();
+    actionInput.focus();
+  }catch(e){
+    showErr('Could not load game: '+e);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Send action with auto-retry ───────────────────────────────────────────────
+async function sendAction(actionOverride){
+  const action = actionOverride || actionInput.value.trim();
+  if(!action||isLoading) return;
+
+  actionInput.value='';
+  clearChoices();
+  addPlayerEntry(action);
+  setLoading(true);
+  hideErr();
+  _lastFailedAction = action;
+
+  const MAX_RETRIES = 2;
+  let lastError = null;
+
+  for(let attempt=0; attempt<=MAX_RETRIES; attempt++){
+    try{
+      if(attempt > 0){
+        showErr(`Retrying… (attempt ${attempt+1})`);
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
+      const r=await fetch('/api/game/action',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({save_id:saveId, action}),
+      });
+      const data=await r.json();
+      if(data.error){
+        lastError = data.error;
+        if(attempt < MAX_RETRIES) continue;
+        showErr(data.error);
+        setLoading(false);
+        return;
+      }
+
+      hideErr();
+      _lastFailedAction = null;
+      currentTurn=data.turn||currentTurn+1;
+      updateTurn();
+
+      addStoryEntry(data.story || 'The story continues...', true);
+
+      // Fetch image from search
+      if(data.scene) fetchAndShowImage(data.scene);
+
+      // Show clickable choices
+      if(data.choices && data.choices.length>0) renderChoices(data.choices);
+
+      if(data.checkpoint) handleCheckpoint(data.checkpoint);
+
+      // Check if time-butterfly should appear
+      maybeShowTimeButterfly();
+
+      scrollBottom();
+      actionInput.focus();
+      setLoading(false);
+      return; // success
+    }catch(e){
+      lastError = e;
+      if(attempt < MAX_RETRIES) continue;
+    }
+  }
+
+  // All retries exhausted
+  showErr('Connection error. Check your network and try again.');
+  setLoading(false);
+}
+
+// ── Image search ─────────────────────────────────────────────────────────────
+const sceneLoading = document.getElementById('scene-loading');
+
+async function fetchAndShowImage(sceneQuery){
+  sceneLoading.style.display = 'block';
+  updateSceneDesc(sceneQuery);
+
+  try{
+    const r = await fetch(`/api/image-search?q=${encodeURIComponent(sceneQuery)}`);
+    const data = await r.json();
+    if(data.url){
+      const img = new Image();
+      img.onload = ()=>{
+        sceneImg.src = data.url;
+        sceneImg.style.display='block';
+        sceneImg.offsetHeight;
+        sceneImg.classList.add('loaded');
+        scenePlaceholder.style.display='none';
+        sceneLoading.style.display='none';
+      };
+      img.onerror = ()=>{ showPlaceholder(sceneQuery); };
+      img.src = data.url;
+    } else {
+      showPlaceholder(sceneQuery);
+    }
+  }catch(e){
+    showPlaceholder(sceneQuery);
+  }
+}
+
+function showPlaceholder(sceneQuery){
+  sceneImg.style.display='none';
+  sceneImg.classList.remove('loaded');
+  scenePlaceholder.style.display='flex';
+  sceneLoading.style.display='none';
+  if(sceneQuery) updateSceneDesc(sceneQuery);
+}
+
+// ── Choices ───────────────────────────────────────────────────────────────────
+function renderChoices(choices){
+  clearChoices();
+  choices.forEach(choice=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = choice;
+    btn.addEventListener('click', ()=> sendAction(choice));
+    choicesWrap.appendChild(btn);
+  });
+}
+
+function clearChoices(){
+  choicesWrap.innerHTML='';
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function addPlayerEntry(text){
+  const div=document.createElement('div');
+  div.className='story-entry player-action';
+  div.textContent='> '+text;
+  storyScroll.appendChild(div);
+}
+
+function addStoryEntry(text, animate){
+  const div=document.createElement('div');
+  div.className='story-entry';
+  const p=document.createElement('div');
+  p.className='story-text';
+  storyScroll.appendChild(div);
+  div.appendChild(p);
+
+  if(animate){
+    typeWriter(p, text, 14);
+  } else {
+    p.textContent=text;
+  }
+}
+
+function typeWriter(el, text, speed){
+  let i=0, last=0;
+  function step(ts){
+    if(i>=text.length) return;
+    if(ts-last>=speed){
+      // Batch 2 chars per frame for smoother feel
+      const end=Math.min(i+2, text.length);
+      el.textContent+=text.slice(i, end);
+      i=end;
+      last=ts;
+      if(i%8===0) scrollBottom(); // scroll less often
+    }
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function setImage(path){
+  sceneImg.src=path;
+  sceneImg.style.display='block';
+  sceneImg.classList.add('loaded');
+  scenePlaceholder.style.display='none';
+  sceneImg.onerror=()=>{ sceneImg.style.display='none';sceneImg.classList.remove('loaded'); scenePlaceholder.style.display='flex'; };
+}
+
+function updateSceneDesc(text){
+  sceneDesc.textContent=text.slice(0,120)+(text.length>120?'…':'');
+}
+
+function parseResponse(raw){
+  // Guard against null / undefined / non-string input
+  if(!raw || typeof raw !== 'string'){
+    return {story: 'The story continues...', scene: null, choices: []};
+  }
+  try{
+    const sceneMatch = raw.match(/\[SCENE\]([\s\S]*?)\[\/SCENE\]/);
+    const choicesMatch = raw.match(/\[CHOICES\]([\s\S]*?)\[\/CHOICES\]/);
+
+    let cutoff = raw.length;
+    if(sceneMatch) cutoff = Math.min(cutoff, sceneMatch.index);
+    if(choicesMatch) cutoff = Math.min(cutoff, choicesMatch.index);
+    const cpMatch = raw.match(/\[CHECKPOINT\]/);
+    if(cpMatch) cutoff = Math.min(cutoff, cpMatch.index);
+
+    let story = raw.slice(0, cutoff).replace(/\[SCENE\][\s\S]*?\[\/SCENE\]/g,'')
+      .replace(/\[CHECKPOINT\][\s\S]*?\[\/CHECKPOINT\]/g,'')
+      .replace(/\[CHOICES\][\s\S]*?\[\/CHOICES\]/g,'').trim();
+    if(!story) story = 'The story continues...';
+
+    const scene = sceneMatch ? sceneMatch[1].trim() : null;
+
+    const choices = [];
+    if(choicesMatch){
+      choicesMatch[1].trim().split('\n').forEach(line=>{
+        line = line.trim().replace(/^[-•*]\s*/, '').trim();
+        if(line) choices.push(line);
+      });
+    }
+
+    return {story, scene, choices};
+  }catch(e){
+    console.warn('[parseResponse] error:', e);
+    return {story: raw.slice(0, 500), scene: null, choices: []};
+  }
+}
+
+function parseStory(raw){
+  return parseResponse(raw).story;
+}
+
+function setLoading(v){
+  isLoading=v;
+  sendBtn.disabled=v;
+  actionInput.disabled=v;
+  loadBar.style.width=v?'75%':'100%';
+  if(!v) setTimeout(()=>loadBar.style.width='0',400);
+  // Disable choice buttons during loading
+  document.querySelectorAll('.choice-btn').forEach(b=>b.disabled=v);
+}
+
+function updateTurn(){
+  turnBadge.textContent='turn '+currentTurn;
+  turnLabel.textContent='turn '+currentTurn;
+}
+
+function scrollBottom(){ storyScroll.scrollTop=storyScroll.scrollHeight; }
+
+let _errTimeout = null;
+function showErr(msg){
+  document.getElementById('err-msg').textContent=msg;
+  errBanner.classList.add('show');
+  if(_errTimeout) clearTimeout(_errTimeout);
+  _errTimeout = setTimeout(hideErr, 8000);
+}
+function hideErr(){
+  errBanner.classList.remove('show');
+  if(_errTimeout){ clearTimeout(_errTimeout); _errTimeout=null; }
+}
+
+// ── Checkpoint handling ───────────────────────────────────────────────────────
+const TYPE_LABELS={achievement:'ACHIEVEMENT',death:'DEATH',discovery:'DISCOVERY',choice:'CHOICE',birth:'BIRTH',manual_save:'MANUAL SAVE'};
+
+function handleCheckpoint(cp){
+  if(!cp) return;
+  try{
+    if('Notification' in window){
+      const perm=Notification.permission;
+      const title = '⭐ ' + (TYPE_LABELS[cp.type] || 'CHECKPOINT');
+      if(perm==='granted'){
+        try{
+          new Notification(title,{
+            body: (cp.description||'A significant moment')+'\n— The Butterfly Effect',
+            silent: false,
+          });
+        }catch(e){ console.warn('Notification failed:', e); }
+      } else if(perm==='default'){
+        Notification.requestPermission().then(p=>{
+          if(p==='granted') try{ new Notification('⭐ '+(cp.description||'')); }catch(e){}
+        }).catch(()=>{});
+      }
+    }
+  }catch(e){ console.warn('Notification handling error:', e); }
+
+  ctType.textContent=(TYPE_LABELS[cp.type]||cp.type||'').toUpperCase();
+  ctType.className='ct-type '+(cp.type||'');
+  ctDesc.textContent=cp.description||'A significant moment';
+  cpToast.classList.add('show');
+  setTimeout(()=>cpToast.classList.remove('show'),5000);
+}
+
+// ── Save button ───────────────────────────────────────────────────────────────
+document.getElementById('save-btn').addEventListener('click',async()=>{
+  const btn=document.getElementById('save-btn');
+  btn.disabled=true;
+  btn.textContent='SAVING…';
+  try{
+    const r=await fetch('/api/game/save-checkpoint',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({save_id:saveId}),
+    });
+    const data=await r.json();
+    if(data.ok){
+      btn.textContent='SAVED ✓';
+      if(data.checkpoint) handleCheckpoint(data.checkpoint);
+    } else {
+      btn.textContent='ERROR';
+    }
+  }catch(e){
+    btn.textContent='ERROR';
+  }
+  setTimeout(()=>{ btn.textContent='SAVE'; btn.disabled=false; },2000);
+});
+
+// ── End game ──────────────────────────────────────────────────────────────────
+document.getElementById('end-btn').addEventListener('click',()=>endModal.classList.add('open'));
+document.getElementById('cancel-end').addEventListener('click',()=>endModal.classList.remove('open'));
+document.getElementById('confirm-end').addEventListener('click',async()=>{
+  endModal.classList.remove('open');
+  setLoading(true);
+  try{
+    await fetch('/api/game/end',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({save_id:saveId})});
+  }finally{
+    window.location.href='/';
+  }
+});
+
+// ── Input events ──────────────────────────────────────────────────────────────
+sendBtn.addEventListener('click',()=>sendAction());
+actionInput.addEventListener('keydown',e=>{ if(e.key==='Enter') sendAction(); });
+
+// Request notification permission early
+if('Notification' in window && Notification.permission==='default'){
+  setTimeout(()=>Notification.requestPermission(),3000);
+}
+
+// ── Time-travel butterfly ─────────────────────────────────────────────────────
+// ── Time-travel butterfly ─────────────────────────────────────────────────────
+const tbEl = document.getElementById('time-butterfly');
+const tbCanvas = document.getElementById('tb-canvas');
+const tbCtx = tbCanvas.getContext('2d');
+let tbTimeout = null;
+let tbData = null; // {direction, turns}
+let tbWingPhase = 0;
+let tbAnimFrame = null;
+
+function hexToRgb(h){
+  const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+  return[r,g,b];
+}
+
+function drawCPButterfly(cx,cy,wPhase,color,scale){
+  tbCtx.save();
+  tbCtx.translate(cx,cy);
+  tbCtx.scale(scale,scale);
+
+  const wScale=Math.abs(Math.cos(wPhase));
+  const [rc,gc,bc]=hexToRgb(color);
+  tbCtx.shadowBlur=14;tbCtx.shadowColor=`rgba(${rc},${gc},${bc},.7)`;
+
+  for(const side of[-1,1]){
+    tbCtx.save();tbCtx.scale(side,1);tbCtx.scale(wScale,1);
+    tbCtx.beginPath();tbCtx.moveTo(0,0);
+    tbCtx.bezierCurveTo(7,-11,30,-26,34,-13);
+    tbCtx.bezierCurveTo(36,-3,19,4,0,7);
+    tbCtx.closePath();tbCtx.fillStyle=`rgba(${rc},${gc},${bc},.85)`;tbCtx.fill();
+    tbCtx.beginPath();tbCtx.moveTo(0,7);
+    tbCtx.bezierCurveTo(7,13,25,24,20,33);
+    tbCtx.bezierCurveTo(14,42,-2,27,0,17);
+    tbCtx.closePath();tbCtx.fillStyle=`rgba(${rc},${gc},${bc},.65)`;tbCtx.fill();
+    tbCtx.restore();
+  }
+  tbCtx.beginPath();tbCtx.ellipse(0,11,1.6,12,0,0,Math.PI*2);
+  tbCtx.fillStyle=`rgba(${rc},${gc},${bc},.9)`;tbCtx.fill();
+  tbCtx.restore();
+}
+
+function renderTB(){
+  tbCtx.clearRect(0,0,60,60);
+  if(tbEl.classList.contains('visible')){
+    tbWingPhase += 0.08;
+    // use a purple color
+    drawCPButterfly(30, 30, tbWingPhase, '#9b7eff', 0.8);
+  }
+  tbAnimFrame = requestAnimationFrame(renderTB);
+}
+renderTB(); // start loop
+
+function maybeShowTimeButterfly(){
+  // Hide any current butterfly
+  tbEl.classList.remove('visible');
+  if(tbTimeout) clearTimeout(tbTimeout);
+
+  if(currentTurn === 2){
+    // Always show at turn 2: go back to turn 1
+    tbData = {direction:'back', turns:1};
+    scheduleButterfly();
+  } else if(currentTurn > 3 && Math.random() < 0.15){
+    // 15% chance at turns > 3
+    const goForward = Math.random() < 0.5;
+    const jumps = 1 + Math.floor(Math.random()*3); // 1, 2, or 3
+
+    if(goForward){
+      tbData = {direction:'forward', turns:jumps};
+    } else {
+      const maxBack = Math.min(jumps, currentTurn - 1);
+      if(maxBack < 1) return;
+      tbData = {direction:'back', turns:maxBack};
+    }
+    scheduleButterfly();
+  }
+}
+
+function scheduleButterfly(){
+  // Show after a 3s delay
+  tbTimeout = setTimeout(()=>{
+    // Remove and re-add animation to restart it
+    tbEl.style.animation = 'none';
+    tbEl.offsetHeight; // trigger reflow
+    tbEl.style.animation = null;
+    
+    tbEl.classList.add('visible');
+
+    // Auto-hide after 14s (length of the CSS path animation)
+    tbTimeout = setTimeout(()=>{
+      tbEl.classList.remove('visible');
+      tbData = null;
+    }, 14000);
+  }, 3000);
+}
+
+tbEl.addEventListener('click', async ()=>{
+  if(!tbData || isLoading) return;
+  tbEl.classList.remove('visible');
+  setLoading(true);
+
+  try{
+    const r = await fetch('/api/game/time-jump',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({save_id:saveId, direction:tbData.direction, turns:tbData.turns}),
+    });
+    const data = await r.json();
+    if(data.ok){
+      // Show a dramatic notification
+      const dir = data.direction==='back' ? '\u23ea REWOUND' : '\u23e9 LEAPED';
+      const desc = `${dir} ${data.turns_jumped} turn${data.turns_jumped>1?'s':''} \u2014 now at turn ${data.new_turn}`;
+      handleCheckpoint({type:'choice', description:desc});
+
+      // Reload the page at the new state
+      window.location.href = `/game?save_id=${saveId}`;
+    } else {
+      showErr(data.error || 'Time jump failed');
+    }
+  } catch(e){
+    showErr('Error: '+e);
+  } finally {
+    setLoading(false);
+    tbData = null;
+  }
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
