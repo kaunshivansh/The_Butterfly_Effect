@@ -420,27 +420,30 @@ def compose_paragraph(state, beat, intent, action):
             f"You find a place where the danger can't reach — at least not yet. {_env_sentence()}",
         ], 'rest'))
 
-    # Layer 3: Environmental texture (adaptive length by arc phase)
+    # Layer 3: Environmental texture
     phase = state.get('arc_phase', 'setup')
-    target_map = {'setup': 5, 'rising': 4, 'climax': 3, 'falling': 5, 'resolution': 4}
-    target_len = target_map.get(phase, 4)
+    target_map = {'setup': 3, 'rising': 3, 'climax': 2, 'falling': 3, 'resolution': 3}
+    target_len = target_map.get(phase, 3)
     if len(sentences) < target_len:
         sentences.append(_env_sentence())
-    if len(sentences) < target_len and random.random() < 0.65:
+    if len(sentences) < target_len and random.random() < 0.4:
         sentences.append(_sensory_sentence(tension))
 
-    # Layer 4: Continuity callback
+    # Layers 4/5/6: Continuity, Echo, or Hook (Mutually exclusive to prevent bloat)
+    added_flair = False
+    
     cb = _callback_sentence(state)
-    if cb:
+    if cb and random.random() < 0.6:
         sentences.append(cb)
+        added_flair = True
 
-    # Layer 5: Player-echo (weave their words back in)
-    echo = _player_echo(action, keywords)
-    if echo:
-        sentences.append(echo)
+    if not added_flair:
+        echo = _player_echo(action, keywords)
+        if echo:
+            sentences.append(echo)
+            added_flair = True
 
-    # Layer 6: Hook closer (not every turn — ~50%)
-    if random.random() < 0.5:
+    if not added_flair and random.random() < 0.3:
         sentences.append(_pick(HOOKS, 'hook'))
     # Normalize: ensure each sentence ends with proper punctuation
     cleaned = []
@@ -740,29 +743,30 @@ def _update_emotion(state, beat, intent):
         state['emotion'] = new_emotion
 
 def _advance_arc(state, turn):
-    if turn <= 2:
+    # Slower paced arc progression
+    if turn <= 4:
         state['arc_phase'] = 'setup'
-        state['tension'] = 0.2 + random.random() * 0.15
-    elif turn <= 5:
+        state['tension'] = 0.2 + random.random() * 0.1
+    elif turn <= 10:
         state['arc_phase'] = 'rising'
-        state['tension'] = min(0.8, state['tension'] + 0.08 + random.random() * 0.06)
-    elif turn <= 8:
+        state['tension'] = min(0.8, state['tension'] + 0.05 + random.random() * 0.04)
+    elif turn <= 14:
         state['arc_phase'] = 'climax'
         state['tension'] = 0.7 + random.random() * 0.3
-    elif turn <= 10:
+    elif turn <= 18:
         state['arc_phase'] = 'falling'
-        state['tension'] = max(0.3, state['tension'] - 0.12 - random.random() * 0.05)
+        state['tension'] = max(0.3, state['tension'] - 0.08 - random.random() * 0.05)
     else:
-        c = (turn - 10) % 7
-        if c < 3:
+        c = (turn - 18) % 12
+        if c < 5:
             state['arc_phase'] = 'rising'
-            state['tension'] = min(0.9, state['tension'] + 0.07)
-        elif c < 5:
+            state['tension'] = min(0.9, state['tension'] + 0.05)
+        elif c < 8:
             state['arc_phase'] = 'climax'
             state['tension'] = 0.7 + random.random() * 0.3
-        elif c < 6:
+        elif c < 10:
             state['arc_phase'] = 'falling'
-            state['tension'] = max(0.25, state['tension'] - 0.12)
+            state['tension'] = max(0.25, state['tension'] - 0.1)
         else:
             state['arc_phase'] = 'setup'
             state['tension'] = 0.3 + random.random() * 0.1
@@ -770,12 +774,12 @@ def _advance_arc(state, turn):
 def _pick_beat(state):
     phase = state['arc_phase']
     w = {
-        'setup':     {'discovery':3,'encounter':2,'transition':2,'rest':1,'obstacle':1,'revelation':1,'conflict':0},
-        'rising':    {'encounter':3,'obstacle':3,'discovery':2,'transition':1,'revelation':2,'conflict':2,'rest':0},
-        'climax':    {'conflict':4,'revelation':3,'obstacle':2,'encounter':2,'discovery':1,'transition':0,'rest':0},
-        'falling':   {'discovery':2,'rest':3,'transition':2,'revelation':2,'encounter':1,'obstacle':1,'conflict':0},
-        'resolution':{'rest':3,'discovery':2,'revelation':2,'transition':1,'encounter':1,'obstacle':0,'conflict':0},
-    }.get(phase, {'discovery':2,'encounter':2,'obstacle':2,'revelation':1,'transition':1,'conflict':1,'rest':1})
+        'setup':     {'discovery':5,'encounter':1,'transition':1,'rest':2,'obstacle':1,'revelation':0,'conflict':0},
+        'rising':    {'encounter':3,'obstacle':3,'discovery':4,'transition':1,'revelation':1,'conflict':1,'rest':0},
+        'climax':    {'conflict':4,'revelation':3,'obstacle':3,'encounter':2,'discovery':1,'transition':0,'rest':0},
+        'falling':   {'discovery':3,'rest':4,'transition':2,'revelation':1,'encounter':1,'obstacle':1,'conflict':0},
+        'resolution':{'rest':4,'discovery':3,'revelation':1,'transition':1,'encounter':1,'obstacle':0,'conflict':0},
+    }.get(phase, {'discovery':4,'encounter':1,'obstacle':2,'revelation':1,'transition':1,'conflict':1,'rest':2})
     beats = list(w.keys())
     wts = [w[b] for b in beats]
     return random.choices(beats, weights=wts, k=1)[0]
