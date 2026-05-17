@@ -119,9 +119,9 @@ def api_image_search():
     if fpath.exists():
         return jsonify({'url': f'/game_images/{fname}'})
 
-    # Try downloading from LoremFlickr (keyword-relevant images)
-    keywords = ','.join(q.split()[:4])
-    source_url = f'https://loremflickr.com/800/600/{keywords}'
+    # Try downloading from Picsum (aesthetic random backgrounds based on seed)
+    seed = hashlib.md5(q.encode()).hexdigest()
+    source_url = f'https://picsum.photos/seed/{seed}/800/600'
     if _download_image(source_url, fpath):
         # Invalidate cache so new file is picked up
         global _image_cache_mtime

@@ -262,9 +262,13 @@ def _extract_keywords(text):
     stop = {'i','the','a','an','to','and','or','but','in','on','at','for','of','is',
             'it','my','me','do','go','up','so','if','by','no','am','be','we','us',
             'this','that','with','from','into','what','them','their','there','here',
-            'just','more','some','very','want','try','see','take','make','get','let'}
+            'just','more','some','very','want','try','see','take','make','get','let',
+            'hey','hello','hi','yes','ok','okay','well','now','then','how','why','when',
+            'where','who','which','are','was','were','will','would','can','could','should',
+            'have','has','had','not','all','any','one','out','about','like','know','think',
+            'look','good','bad','start','begin','end','stop','please','help','fuck','shit'}
     words = re.findall(r'[a-zA-Z]+', text.lower())
-    return [w for w in words if w not in stop and len(w) > 2][:6]
+    return [w for w in words if w not in stop and len(w) > 3][:6]
 
 # ── Paragraph builders ────────────────────────────────────────────────────────
 
@@ -446,8 +450,10 @@ def compose_paragraph(state, beat, intent, action):
             continue
         while s.endswith('..') and not s.endswith('...'):
             s = s[:-1]
-        if s and s[-1] not in '.!?"\'':
+        if s[-1] not in '.!?"\'':
             s += '.'
+        # Ensure capitalization
+        s = s[0].upper() + s[1:]
         cleaned.append(s)
 
     # ── Motif insertion (recurring symbols) ──
@@ -597,7 +603,18 @@ class StoryEngine:
         else:
             p4 = _pick(HOOKS, 'hook')
 
-        story = f"{p1} {p2} {p3} {p4}"
+        raw_sentences = [p1, p2, p3, p4]
+        cleaned = []
+        for s in raw_sentences:
+            s = s.strip()
+            if not s: continue
+            if s[-1] not in '.!?"\'':
+                s += '.'
+            s = s[0].upper() + s[1:]
+            cleaned.append(s)
+            
+        story = ' '.join(cleaned)
+
         scene = state['location_desc']
         choices = generate_choices(state, 'discovery')
         return story, scene, choices, None
