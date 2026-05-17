@@ -17,7 +17,7 @@ env/
 
 # Saved Games / User Data
 saves/
-*.json
+saves/*.json
 
 # Downloaded Images Cache
 static/game_images/

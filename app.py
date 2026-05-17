@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from story_engine import StoryEngine
 
 load_dotenv()
@@ -15,8 +15,14 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 
-SAVES_DIR  = Path('saves')
-IMAGES_DIR = Path('static/game_images')
+# Vercel serverless environment is read-only except for /tmp
+if os.environ.get('VERCEL') == '1':
+    SAVES_DIR  = Path('/tmp/saves')
+    IMAGES_DIR = Path('/tmp/game_images')
+else:
+    SAVES_DIR  = Path('saves')
+    IMAGES_DIR = Path('static/game_images')
+
 SAVES_DIR.mkdir(exist_ok=True)
 IMAGES_DIR.mkdir(exist_ok=True, parents=True)
 
@@ -73,6 +79,10 @@ def index():
 def game():
     return render_template('game.html')
 
+@app.route('/game_images/<path:filename>')
+def serve_image(filename):
+    return send_from_directory(IMAGES_DIR, filename)
+
 @app.route('/api/checkpoints')
 def api_checkpoints():
     """Return all checkpoints from all saves (for home screen butterflies)."""
@@ -107,7 +117,7 @@ def api_image_search():
     fname = hashlib.md5(q.encode()).hexdigest() + '.jpg'
     fpath = IMAGES_DIR / fname
     if fpath.exists():
-        return jsonify({'url': f'/static/game_images/{fname}'})
+        return jsonify({'url': f'/game_images/{fname}'})
 
     # Try downloading from LoremFlickr (keyword-relevant images)
     keywords = ','.join(q.split()[:4])
@@ -116,12 +126,12 @@ def api_image_search():
         # Invalidate cache so new file is picked up
         global _image_cache_mtime
         _image_cache_mtime = 0
-        return jsonify({'url': f'/static/game_images/{fname}'})
+        return jsonify({'url': f'/game_images/{fname}'})
 
     # Fallback: return a random cached image if any exist
     cached = _get_cached_images()
     if cached:
-        return jsonify({'url': f'/static/game_images/{random.choice(cached)}'})
+        return jsonify({'url': f'/game_images/{random.choice(cached)}'})
 
     # Nothing available — frontend will show atmospheric placeholder
     return jsonify({'url': None})
