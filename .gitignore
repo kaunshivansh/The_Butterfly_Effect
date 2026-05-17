@@ -13,6 +13,7 @@ env/
 .env
 .env.local
 .env.*
+!.env.example
 
 # Saved Games / User Data
 saves/
