@@ -16,6 +16,8 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'butterfly')
+
 # Vercel serverless environment is read-only except for /tmp
 if os.environ.get('VERCEL') == '1':
     SAVES_DIR  = Path('/tmp/saves')
@@ -158,7 +160,7 @@ def admin():
     """Render the lightweight lore upload console."""
     error = ''
     if request.method == 'POST':
-        if request.form.get('password') == 'butterfly':
+        if request.form.get('password') == ADMIN_PASSWORD:
             session['admin_ok'] = True
         else:
             error = 'wrong password'
@@ -195,7 +197,7 @@ def admin():
 @app.route('/admin/upload-lore', methods=['POST'])
 def admin_upload_lore():
     """Accept a .txt lore file and add it to the optional corpus."""
-    if not session.get('admin_ok') and request.form.get('password') != 'butterfly':
+    if not session.get('admin_ok') and request.form.get('password') != ADMIN_PASSWORD:
         return jsonify({'error': 'unauthorized'}), 403
     file = request.files.get('lore')
     if not file or not file.filename.lower().endswith('.txt'):

@@ -16,13 +16,18 @@ env/
 !.env.example
 
 # Saved Games / User Data
-saves/
-saves/*.json
-lore_corpus/
+saves/*
+!saves/.keep
 saves_backup/
 
+lore_corpus/*
+!lore_corpus/.keep
+!lore_corpus/documents/
+lore_corpus/documents/*
+!lore_corpus/documents/.keep
+
 # Downloaded Images Cache
-static/game_images/
+static/game_images/*
 !static/game_images/.keep
 
 # macOS
