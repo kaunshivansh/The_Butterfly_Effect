@@ -68,6 +68,18 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     #turn-badge{position:absolute;top:10px;left:12px;font-size:10px;color:var(--dim);letter-spacing:.14em;z-index:2;
       background:rgba(0,0,0,.5);padding:3px 8px;border-radius:3px;backdrop-filter:blur(4px)}
+    #image-caption{
+      position:absolute;left:12px;right:12px;bottom:12px;z-index:2;
+      font-size:9px;line-height:1.5;letter-spacing:.08em;color:rgba(255,255,255,.34);
+      font-style:italic;text-shadow:0 1px 8px rgba(0,0,0,.8);pointer-events:none
+    }
+    #regen-img-btn{
+      position:absolute;right:12px;top:10px;z-index:3;
+      background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12);
+      color:rgba(255,255,255,.45);font-family:var(--font);font-size:9px;letter-spacing:.12em;
+      padding:4px 8px;cursor:pointer;border-radius:2px;backdrop-filter:blur(4px)
+    }
+    #regen-img-btn:hover{color:#ddd;border-color:rgba(155,126,255,.45)}
     /* Vignette overlay on the image */
     #img-panel::after{
       content:'';position:absolute;inset:0;
@@ -149,6 +161,24 @@
     #cp-toast .ct-type.choice{color:#AA66FF}
     #cp-toast .ct-type.birth{color:var(--green)}
     #cp-toast .ct-type.manual_save{color:#AABBCC}
+    #cp-toast .ct-type.autosave{color:#9b7eff}
+
+    /* ── Text drawer panels ── */
+    #text-drawer{
+      position:fixed;top:48px;right:0;bottom:70px;width:min(420px,92vw);
+      background:rgba(9,9,11,.96);border-left:1px solid rgba(255,255,255,.1);
+      z-index:220;transform:translateX(100%);transition:transform .28s ease;
+      display:flex;flex-direction:column;backdrop-filter:blur(10px)
+    }
+    #text-drawer.open{transform:translateX(0)}
+    #drawer-head{display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px;border-bottom:1px solid var(--border)}
+    #drawer-title{font-size:11px;letter-spacing:.18em;color:#ccc;text-transform:uppercase}
+    #drawer-close{background:none;border:1px solid var(--border);color:var(--dim);
+      font-family:var(--font);font-size:10px;letter-spacing:.14em;padding:4px 9px;cursor:pointer}
+    #drawer-close:hover{border-color:#666;color:#eee}
+    #drawer-body{padding:18px 20px;overflow-y:auto;white-space:pre-line;
+      font-size:12px;line-height:1.9;letter-spacing:.06em;color:#cfcfcf}
 
     /* ── End modal ── */
     #end-modal{
@@ -212,20 +242,23 @@
       #scene-glyph{font-size:32px}
       #cp-toast{right:10px;left:10px;max-width:none}
       #end-box{padding:28px 24px;margin:0 16px}
+      #text-drawer{top:44px;bottom:56px}
     }
 
     /* ── Responsive: very small phones ── */
     @media(max-width:400px){
       #root{grid-template-rows:40px 1fr 50px}
       #main{grid-template-rows:140px 1fr}
-      #header-title{font-size:9px;letter-spacing:.1em}
-      .hbtn{font-size:8px;padding:3px 8px;letter-spacing:.08em}
+      #header-title{display:none}
+      #header-btns{width:100%;justify-content:space-between;gap:4px}
+      .hbtn{font-size:8px;padding:3px 5px;letter-spacing:.05em}
       .story-text{font-size:11px;line-height:1.7}
       #story-scroll{padding:10px 12px}
       #choices-wrap{padding:0 12px 4px}
       .choice-btn{font-size:9px;padding:6px 10px}
       #action-input{font-size:11px}
       #send-btn{font-size:8px;padding:5px 10px}
+      #text-drawer{top:40px;bottom:50px}
     }
 
     /* ── Responsive: short windows (landscape phone) ── */
@@ -273,6 +306,9 @@
     <div id="header-title">The Butterfly Effect</div>
     <div id="header-btns">
       <div id="turn-label" style="font-size:10px;color:var(--dim);letter-spacing:.14em;align-self:center;margin-right:6px"></div>
+      <button class="hbtn" id="inventory-btn">[INVENTORY]</button>
+      <button class="hbtn" id="journal-btn">[JOURNAL]</button>
+      <button class="hbtn" id="character-btn">[CHARACTER]</button>
       <button class="hbtn" id="save-btn">SAVE</button>
       <button class="hbtn danger" id="end-btn">END GAME</button>
     </div>
@@ -281,12 +317,14 @@
   <div id="main">
     <div id="img-panel">
       <div id="turn-badge"></div>
+      <button id="regen-img-btn">REIMAGE</button>
       <img id="scene-img" alt="Scene"/>
       <div id="scene-placeholder">
         <div id="scene-loading"></div>
         <div id="scene-glyph">🪶</div>
         <div id="scene-desc">your scene will appear here</div>
       </div>
+      <div id="image-caption"></div>
     </div>
 
     <div id="story-panel">
@@ -322,6 +360,15 @@
 
 <div id="err-banner"><span id="err-msg"></span><button id="err-dismiss" onclick="hideErr()">DISMISS</button></div>
 
+<!-- Text drawer panels -->
+<aside id="text-drawer" aria-hidden="true">
+  <div id="drawer-head">
+    <div id="drawer-title"></div>
+    <button id="drawer-close">CLOSE</button>
+  </div>
+  <div id="drawer-body"></div>
+</aside>
+
 <!-- Time-travel butterfly -->
 <div id="time-butterfly">
   <canvas id="tb-canvas" width="60" height="60"></canvas>
@@ -340,6 +387,8 @@ const sendBtn     = document.getElementById('send-btn');
 const sceneImg    = document.getElementById('scene-img');
 const scenePlaceholder = document.getElementById('scene-placeholder');
 const sceneDesc   = document.getElementById('scene-desc');
+const imageCaption= document.getElementById('image-caption');
+const regenImgBtn = document.getElementById('regen-img-btn');
 const loadBar     = document.getElementById('loading-bar');
 const cpToast     = document.getElementById('cp-toast');
 const ctType      = document.getElementById('ct-type');
@@ -348,10 +397,15 @@ const endModal    = document.getElementById('end-modal');
 const turnBadge   = document.getElementById('turn-badge');
 const turnLabel   = document.getElementById('turn-label');
 const errBanner   = document.getElementById('err-banner');
+const textDrawer  = document.getElementById('text-drawer');
+const drawerTitle = document.getElementById('drawer-title');
+const drawerBody  = document.getElementById('drawer-body');
 
 let currentTurn = 0;
 let isLoading   = false;
 let _lastFailedAction = null; // for retry
+let panelText = {inventory:'', journal:'', character:''};
+let lastImageQuery = '';
 
 // ── Load initial game state ───────────────────────────────────────────────────
 async function init(){
@@ -363,6 +417,7 @@ async function init(){
 
     currentTurn = data.current_turn || 1;
     updateTurn();
+    updatePanels(data.panels || {});
 
     // Replay history into story panel
     const hist = data.history || [];
@@ -379,7 +434,8 @@ async function init(){
     }
 
     // Show image for last scene
-    if(lastScene) fetchAndShowImage(lastScene);
+    if(data.image_query) fetchAndShowImage(data.image_query, data.image_caption || data.image_query);
+    else if(lastScene) fetchAndShowImage(lastScene);
     else if(data.last_image_path) setImage(data.last_image_path);
 
     // Show choices from the last assistant message
@@ -439,11 +495,13 @@ async function sendAction(actionOverride){
       _lastFailedAction = null;
       currentTurn=data.turn||currentTurn+1;
       updateTurn();
+      updatePanels(data.panels || {});
 
       addStoryEntry(data.story || 'The story continues...', true);
 
       // Fetch image from search
-      if(data.scene) fetchAndShowImage(data.scene);
+      if(data.image_query) fetchAndShowImage(data.image_query, data.image_caption || data.image_query);
+      else if(data.scene) fetchAndShowImage(data.scene);
 
       // Show clickable choices
       if(data.choices && data.choices.length>0) renderChoices(data.choices);
@@ -471,13 +529,15 @@ async function sendAction(actionOverride){
 // ── Image search ─────────────────────────────────────────────────────────────
 const sceneLoading = document.getElementById('scene-loading');
 
-async function fetchAndShowImage(sceneQuery){
+async function fetchAndShowImage(sceneQuery, captionText){
+  lastImageQuery = sceneQuery || '';
   sceneLoading.style.display = 'block';
-  updateSceneDesc(sceneQuery);
+  updateSceneDesc(captionText || sceneQuery);
 
   try{
     const r = await fetch(`/api/image-search?q=${encodeURIComponent(sceneQuery)}`);
     const data = await r.json();
+    if(data.caption || data.query) updateSceneDesc(data.caption || data.query);
     if(data.url){
       const img = new Image();
       img.onload = ()=>{
@@ -520,6 +580,42 @@ function renderChoices(choices){
 
 function clearChoices(){
   choicesWrap.innerHTML='';
+}
+
+// ── Text panels ──────────────────────────────────────────────────────────────
+function updatePanels(panels){
+  panelText = {
+    inventory: panels.inventory || panelText.inventory || 'Your pack is quiet.',
+    journal: panels.journal || panelText.journal || 'The road has not yet written itself down.',
+    character: panels.character || panelText.character || 'You are still becoming legible.',
+  };
+  if(textDrawer.classList.contains('open')){
+    const active = textDrawer.dataset.panel;
+    if(active) openPanel(active, true);
+  }
+}
+
+function openPanel(kind, keepOpen){
+  const titles = {inventory:'Inventory', journal:'Journal', character:'Character'};
+  drawerTitle.textContent = titles[kind] || 'Journal';
+  drawerBody.textContent = panelText[kind] || '';
+  textDrawer.dataset.panel = kind;
+  textDrawer.classList.add('open');
+  textDrawer.setAttribute('aria-hidden','false');
+  if(!keepOpen) drawerBody.scrollTop = 0;
+}
+
+function togglePanel(kind){
+  if(textDrawer.classList.contains('open') && textDrawer.dataset.panel===kind){
+    closePanel();
+  } else {
+    openPanel(kind, false);
+  }
+}
+
+function closePanel(){
+  textDrawer.classList.remove('open');
+  textDrawer.setAttribute('aria-hidden','true');
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
@@ -571,7 +667,47 @@ function setImage(path){
 }
 
 function updateSceneDesc(text){
+  text = text || '';
   sceneDesc.textContent=text.slice(0,120)+(text.length>120?'…':'');
+  imageCaption.textContent=text ? 'searched: '+text.slice(0,150)+(text.length>150?'…':'') : '';
+}
+
+async function regenerateImage(){
+  if(isLoading) return;
+  sceneLoading.style.display='block';
+  regenImgBtn.disabled=true;
+  regenImgBtn.textContent='WEAVING';
+  try{
+    const r=await fetch('/api/image-regenerate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({save_id:saveId}),
+    });
+    const data=await r.json();
+    if(data.error){ showErr(data.error); return; }
+    lastImageQuery=data.query||lastImageQuery;
+    updateSceneDesc(data.caption||data.query||lastImageQuery);
+    if(data.url){
+      const img=new Image();
+      img.onload=()=>{
+        sceneImg.src=data.url;
+        sceneImg.style.display='block';
+        sceneImg.offsetHeight;
+        sceneImg.classList.add('loaded');
+        scenePlaceholder.style.display='none';
+        sceneLoading.style.display='none';
+      };
+      img.onerror=()=>showPlaceholder(data.query||lastImageQuery);
+      img.src=data.url;
+    } else {
+      showPlaceholder(data.query||lastImageQuery);
+    }
+  }catch(e){
+    showErr('Image regeneration failed: '+e);
+  }finally{
+    regenImgBtn.disabled=false;
+    regenImgBtn.textContent='REIMAGE';
+  }
 }
 
 function parseResponse(raw){
@@ -645,7 +781,7 @@ function hideErr(){
 }
 
 // ── Checkpoint handling ───────────────────────────────────────────────────────
-const TYPE_LABELS={achievement:'ACHIEVEMENT',death:'DEATH',discovery:'DISCOVERY',choice:'CHOICE',birth:'BIRTH',manual_save:'MANUAL SAVE'};
+const TYPE_LABELS={achievement:'ACHIEVEMENT',death:'DEATH',discovery:'DISCOVERY',choice:'CHOICE',birth:'BIRTH',manual_save:'MANUAL SAVE',autosave:'AUTO SAVE'};
 
 function handleCheckpoint(cp){
   if(!cp) return;
@@ -676,6 +812,12 @@ function handleCheckpoint(cp){
 }
 
 // ── Save button ───────────────────────────────────────────────────────────────
+document.getElementById('inventory-btn').addEventListener('click',()=>togglePanel('inventory'));
+document.getElementById('journal-btn').addEventListener('click',()=>togglePanel('journal'));
+document.getElementById('character-btn').addEventListener('click',()=>togglePanel('character'));
+document.getElementById('drawer-close').addEventListener('click',closePanel);
+regenImgBtn.addEventListener('click',regenerateImage);
+
 document.getElementById('save-btn').addEventListener('click',async()=>{
   const btn=document.getElementById('save-btn');
   btn.disabled=true;

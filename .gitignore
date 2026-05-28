@@ -18,6 +18,8 @@ env/
 # Saved Games / User Data
 saves/
 saves/*.json
+lore_corpus/
+saves_backup/
 
 # Downloaded Images Cache
 static/game_images/

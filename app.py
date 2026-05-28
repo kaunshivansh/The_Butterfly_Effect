@@ -2,13 +2,14 @@
 The Butterfly Effect — Flask backend.
 Procedural story generation, save management, image serving.
 """
-import json, re, uuid, hashlib, random, urllib.request, threading
+import json, re, uuid, hashlib, random, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, render_template_string, session
 from story_engine import StoryEngine
+from lore_manager import LoreManager
 
 load_dotenv()
 
@@ -19,12 +20,17 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 if os.environ.get('VERCEL') == '1':
     SAVES_DIR  = Path('/tmp/saves')
     IMAGES_DIR = Path('/tmp/game_images')
+    LORE_DIR   = Path('/tmp/lore_corpus')
 else:
     SAVES_DIR  = Path('saves')
     IMAGES_DIR = Path('static/game_images')
+    LORE_DIR   = Path('lore_corpus')
 
 SAVES_DIR.mkdir(exist_ok=True)
 IMAGES_DIR.mkdir(exist_ok=True, parents=True)
+LORE_DIR.mkdir(exist_ok=True, parents=True)
+
+lore_manager = LoreManager(LORE_DIR)
 
 # In-memory image list cache (refreshed lazily)
 _image_cache = None
@@ -112,12 +118,22 @@ def api_image_search():
     q = request.args.get('q', '').strip()
     if not q:
         return jsonify({'url': None})
+    return jsonify(_image_payload(q))
+
+
+def _image_payload(q):
+    """Return a cached/downloaded image payload for a full scene query."""
+    if not q:
+        return {'url': None, 'query': '', 'caption': ''}
 
     # Check exact match in cache
     fname = hashlib.md5(q.encode()).hexdigest() + '.jpg'
     fpath = IMAGES_DIR / fname
     if fpath.exists():
-        return jsonify({'url': f'/game_images/{fname}'})
+        return {'url': f'/game_images/{fname}', 'query': q, 'caption': q}
+
+    if app.config.get('TESTING'):
+        return {'url': None, 'query': q, 'caption': q}
 
     # Try downloading from Picsum (aesthetic random backgrounds based on seed)
     seed = hashlib.md5(q.encode()).hexdigest()
@@ -126,15 +142,69 @@ def api_image_search():
         # Invalidate cache so new file is picked up
         global _image_cache_mtime
         _image_cache_mtime = 0
-        return jsonify({'url': f'/game_images/{fname}'})
+        return {'url': f'/game_images/{fname}', 'query': q, 'caption': q}
 
     # Fallback: return a random cached image if any exist
     cached = _get_cached_images()
     if cached:
-        return jsonify({'url': f'/game_images/{random.choice(cached)}'})
+        return {'url': f'/game_images/{random.choice(cached)}', 'query': q, 'caption': q}
 
     # Nothing available — frontend will show atmospheric placeholder
-    return jsonify({'url': None})
+    return {'url': None, 'query': q, 'caption': q}
+
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    """Render the lightweight lore upload console."""
+    error = ''
+    if request.method == 'POST':
+        if request.form.get('password') == 'butterfly':
+            session['admin_ok'] = True
+        else:
+            error = 'wrong password'
+
+    if not session.get('admin_ok'):
+        return render_template_string("""
+        <!doctype html><html><head><title>Butterfly Admin</title>
+        <style>body{background:#080808;color:#ddd;font-family:Courier New,monospace;padding:40px}
+        input,button{background:#111;color:#ddd;border:1px solid #333;padding:8px;font-family:inherit}
+        .err{color:#ff6655}</style></head><body>
+        <h1>Lore Console</h1>
+        <form method="post"><input type="password" name="password" placeholder="password"/>
+        <button>enter</button></form><p class="err">{{ error }}</p></body></html>
+        """, error=error)
+
+    stats = lore_manager.stats()
+    return render_template_string("""
+    <!doctype html><html><head><title>Butterfly Admin</title>
+    <style>body{background:#080808;color:#ddd;font-family:Courier New,monospace;padding:40px;line-height:1.7}
+    input,button{background:#111;color:#ddd;border:1px solid #333;padding:8px;font-family:inherit}
+    .box{border:1px solid rgba(255,255,255,.12);padding:18px;max-width:620px}</style></head><body>
+    <h1>Lore Console</h1>
+    <div class="box">
+      <p>{{ stats.documents }} document(s), {{ stats.passages }} passage(s), vector index {{ 'ready' if stats.indexed else 'optional' }}.</p>
+      <form action="/admin/upload-lore" method="post" enctype="multipart/form-data">
+        <input type="file" name="lore" accept=".txt" required/>
+        <button>upload lore</button>
+      </form>
+    </div>
+    </body></html>
+    """, stats=stats)
+
+
+@app.route('/admin/upload-lore', methods=['POST'])
+def admin_upload_lore():
+    """Accept a .txt lore file and add it to the optional corpus."""
+    if not session.get('admin_ok') and request.form.get('password') != 'butterfly':
+        return jsonify({'error': 'unauthorized'}), 403
+    file = request.files.get('lore')
+    if not file or not file.filename.lower().endswith('.txt'):
+        return jsonify({'error': 'Upload a .txt file'}), 400
+    text = file.read().decode('utf-8', errors='replace')
+    info = lore_manager.upload_text(file.filename, text)
+    if request.accept_mimetypes.accept_html:
+        return admin()
+    return jsonify({'ok': True, 'document': info, 'stats': lore_manager.stats()})
 
 
 @app.route('/api/game/new', methods=['POST'])
@@ -146,7 +216,9 @@ def api_new_game():
 
     try:
         state = StoryEngine.create_state(opening)
+        _apply_lore_bias(state, opening)
         story, scene, choices, checkpoint = StoryEngine.generate_opening(opening, state)
+        image_query = StoryEngine.build_image_prompt(state, opening)
         raw = _build_raw(story, scene, choices, checkpoint)
 
         history = [
@@ -166,6 +238,8 @@ def api_new_game():
             'checkpoints':  [],
             'current_turn': 1,
             'engine_state': state,
+            'last_scene':    scene,
+            'last_image_query': image_query,
         }
 
         if checkpoint:
@@ -176,6 +250,9 @@ def api_new_game():
             'save_id': save_id, 'story': story,
             'scene': scene, 'choices': choices,
             'checkpoint': checkpoint,
+            'panels': StoryEngine.panel_payload(state),
+            'image_query': image_query,
+            'image_caption': image_query,
         })
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -196,10 +273,13 @@ def api_action():
 
     try:
         state = save.get('engine_state') or StoryEngine.create_state(save.get('opening', 'an adventure'))
+        state = StoryEngine.ensure_state_defaults(state)
         if 'turn' not in state:
             state['turn'] = save.get('current_turn', 1)
 
+        _apply_lore_bias(state, action)
         story, scene, choices, checkpoint, state = StoryEngine.generate(state, action)
+        image_query = StoryEngine.build_image_prompt(state, action)
         raw = _build_raw(story, scene, choices, checkpoint)
 
         save['history'].append({'role': 'user', 'content': action})
@@ -208,14 +288,22 @@ def api_action():
         turn = save['current_turn']
         save['current_turn'] = turn + 1
         save['engine_state'] = state
+        save['last_scene'] = scene
+        save['last_image_query'] = image_query
 
         if checkpoint:
             save['checkpoints'].append(_make_cp(checkpoint, turn))
+        elif save['current_turn'] % 3 == 0:
+            checkpoint = _auto_checkpoint(save['current_turn'])
+            save['checkpoints'].append(_make_cp(checkpoint, save['current_turn']))
 
         _write(save)
         return jsonify({
             'story': story, 'scene': scene, 'choices': choices,
             'checkpoint': checkpoint, 'turn': turn + 1,
+            'panels': StoryEngine.panel_payload(state),
+            'image_query': image_query,
+            'image_caption': image_query,
         })
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -298,7 +386,9 @@ def api_time_jump():
             save['checkpoints'] = []
 
         if save.get('engine_state'):
+            save['engine_state'] = StoryEngine.ensure_state_defaults(save['engine_state'])
             save['engine_state']['turn'] = save['current_turn']
+            save['last_image_query'] = StoryEngine.build_image_prompt(save['engine_state'], 'time jump backward')
         _write(save)
 
         last_story, scene, choices = '', None, []
@@ -309,15 +399,19 @@ def api_time_jump():
             'ok': True, 'direction': 'back', 'turns_jumped': turns,
             'new_turn': save['current_turn'],
             'story': last_story, 'scene': scene, 'choices': choices,
+            'panels': StoryEngine.panel_payload(save.get('engine_state') or {}),
+            'image_query': save.get('last_image_query'),
         })
 
     elif direction == 'forward':
         state = save.get('engine_state') or StoryEngine.create_state(save.get('opening', 'an adventure'))
+        state = StoryEngine.ensure_state_defaults(state)
         last_story, scene, choices_out = '', None, []
 
         for _ in range(turns):
             auto = "Continue exploring and see what happens next."
             history.append({'role': 'user', 'content': auto})
+            _apply_lore_bias(state, auto)
             story, sc, ch, cp, state = StoryEngine.generate(state, auto)
             history.append({'role': 'assistant', 'content': _build_raw(story, sc, ch, cp)})
             last_story, scene, choices_out = story, sc, ch
@@ -325,15 +419,36 @@ def api_time_jump():
 
         save['history'] = history
         save['engine_state'] = state
+        save['last_scene'] = scene
+        save['last_image_query'] = StoryEngine.build_image_prompt(state, auto)
         _write(save)
 
         return jsonify({
             'ok': True, 'direction': 'forward', 'turns_jumped': turns,
             'new_turn': save['current_turn'],
             'story': last_story, 'scene': scene, 'choices': choices_out,
+            'panels': StoryEngine.panel_payload(state),
+            'image_query': save.get('last_image_query'),
         })
 
     return jsonify({'error': 'Invalid direction'}), 400
+
+
+@app.route('/api/image-regenerate', methods=['POST'])
+def api_image_regenerate():
+    """Regenerate the current scene image using a fresh contextual query hash."""
+    body = request.json or {}
+    save = _read(body.get('save_id'))
+    if not save:
+        return jsonify({'error': 'Save not found'}), 404
+    state = StoryEngine.ensure_state_defaults(save.get('engine_state') or StoryEngine.create_state(save.get('opening', 'an adventure')))
+    state['image_nonce'] = state.get('image_nonce', 0) + 1
+    query = StoryEngine.build_image_prompt(state, 'regenerate scene image') + f" variation {state['image_nonce']}"
+    save['engine_state'] = state
+    save['last_image_query'] = query
+    _write(save)
+    payload = _image_payload(query)
+    return jsonify(payload)
 
 
 @app.route('/api/game/<save_id>')
@@ -342,7 +457,12 @@ def api_get_game(save_id):
     if not save:
         return jsonify({'error': 'Not found'}), 404
     # Strip engine_state from response (internal only)
-    return jsonify({k: v for k, v in save.items() if k != 'engine_state'})
+    out = {k: v for k, v in save.items() if k != 'engine_state'}
+    state = StoryEngine.ensure_state_defaults(save.get('engine_state') or StoryEngine.create_state(save.get('opening', 'an adventure')))
+    out['panels'] = StoryEngine.panel_payload(state)
+    out['image_query'] = save.get('last_image_query') or StoryEngine.build_image_prompt(state, save.get('opening', ''))
+    out['image_caption'] = out['image_query']
+    return jsonify(out)
 
 
 @app.route('/api/checkpoint/<checkpoint_id>/load', methods=['POST'])
@@ -363,7 +483,9 @@ def api_load_checkpoint(checkpoint_id):
                     last_story, _, _, _ = _parse(history[-1]['content'])
 
                 state = original.get('engine_state') or StoryEngine.create_state(original.get('opening', ''))
+                state = StoryEngine.ensure_state_defaults(state)
                 state['turn'] = turn
+                image_query = StoryEngine.build_image_prompt(state, 'checkpoint fork')
 
                 new_id = str(uuid.uuid4())
                 new_save = {
@@ -378,6 +500,8 @@ def api_load_checkpoint(checkpoint_id):
                     'current_turn': turn,
                     'engine_state': state,
                     'forked_from':  checkpoint_id,
+                    'last_scene':   state.get('location_desc'),
+                    'last_image_query': image_query,
                 }
                 _write(new_save)
                 return jsonify({
@@ -391,6 +515,29 @@ def api_load_checkpoint(checkpoint_id):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _apply_lore_bias(state, action):
+    """Attach optional lore vocabulary bias to engine state."""
+    try:
+        stats = lore_manager.stats()
+        if stats.get('passages', 0) <= 0:
+            state['lore_bias'] = {}
+            return
+        query = ' '.join([
+            state.get('location', ''),
+            state.get('location_desc', ''),
+            state.get('genre', ''),
+            state.get('emotion', ''),
+            action or '',
+        ])
+        state['lore_bias'] = lore_manager.bias_for_query(query)
+    except Exception as e:
+        print(f'[lore] bias unavailable: {e}')
+        state['lore_bias'] = {}
+
+def _auto_checkpoint(turn):
+    """Create autosave checkpoint metadata every few turns."""
+    return {'type': 'autosave', 'description': f"Auto-save · Turn {turn}"}
 
 def _build_raw(story, scene, choices, checkpoint):
     """Tagged raw string for history storage."""

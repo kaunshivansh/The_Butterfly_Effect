@@ -1,323 +1,212 @@
-"""Rich vocabulary pools for compositional story generation."""
+"""Grounded fragment pools for The Butterfly Effect narrative engine.
 
-# ── Sensory fragments (sight, sound, smell, touch, taste) ─────────────────────
-
-SIGHT = [
-    "shadows twist into shapes that shouldn't exist",
-    "pale light bleeds through cracks above",
-    "dust motes spiral in a shaft of cold light",
-    "the walls glisten with moisture that catches the light",
-    "everything is painted in shades of bruise and ash",
-    "faint phosphorescence outlines the edges of stone",
-    "the horizon warps like heat over iron",
-    "colors here feel wrong—too saturated, too alive",
-    "a thin veil of mist clings to the ground",
-    "light fractures through something crystalline overhead",
-    "everything beyond arm's reach dissolves into murk",
-    "the darkness isn't empty—it moves, it breathes",
-    "strange symbols pulse faintly on every surface",
-    "the sky overhead churns like a wound",
-    "firelight throws jagged silhouettes across the walls",
-    "something glints in your peripheral vision, then vanishes",
-    "the architecture defies geometry—angles that hurt to follow",
-    "veins of luminous mineral thread through the rock",
-    "your shadow falls in the wrong direction",
-    "the landscape ripples as if seen through deep water",
-]
-
-SOUND = [
-    "a low hum vibrates through the floor beneath you",
-    "something drips in a rhythm too deliberate to be natural",
-    "the silence here has weight—it presses against your ears",
-    "distant echoes fold over themselves, impossible to source",
-    "a sound like breathing comes from everywhere at once",
-    "metal scrapes against metal somewhere out of sight",
-    "the wind carries a fragment of melody, then swallows it",
-    "your footsteps return to you wrong—delayed, distorted",
-    "a crack splits the air like snapping bone",
-    "whispers thread through the stillness, just below comprehension",
-    "stone groans deep within the walls, settling or waking",
-    "the acoustics twist your voice into something unfamiliar",
-    "a rhythmic tapping starts, stops, starts again closer",
-    "thunder rolls through the ground rather than the sky",
-    "something large shifts its weight in the dark ahead",
-    "the crackle of energy builds to a subsonic throb",
-    "water rushes somewhere below—fast, urgent, hidden",
-    "a single clear note rings out, then fades to nothing",
-    "insects fall silent in a wave spreading outward from you",
-    "the sound of your own heartbeat becomes deafening",
-]
-
-SMELL = [
-    "the air tastes of copper and old stone",
-    "something sweet and rotting threads through each breath",
-    "ozone hangs sharp and electric after the discharge",
-    "the scent of wet earth and crushed herbs rises underfoot",
-    "smoke—old smoke, baked into every surface",
-    "a mineral sharpness burns the back of your throat",
-    "the air carries something floral and deeply wrong",
-    "petrichor mixes with something chemical and acrid",
-    "incense and rust—an impossible combination",
-    "the smell of the sea, miles from any ocean",
-    "cold air carries no scent at all, which feels worse",
-    "iron and salt—the unmistakable tang of blood",
-    "pine resin and char, the aftermath of something burned",
-    "the damp has a taste—fungal, ancient, patient",
-    "every breath feels thick, coated, medicinal",
-]
-
-TOUCH = [
-    "the surface is warm where it should be cold",
-    "your fingers come away coated in fine, glittering dust",
-    "the ground vibrates with a deep, irregular pulse",
-    "the air itself feels heavier here—thicker, resistant",
-    "your skin prickles with static that won't discharge",
-    "the stone is glass-smooth, worn by something patient",
-    "temperature shifts in bands—warm, cold, warm—as you move",
-    "something brushes your shoulder that isn't there when you turn",
-    "the wall yields slightly under pressure, almost organic",
-    "frost crystals form on your fingertips, then melt instantly",
-    "a draft pushes against you like a slow exhalation",
-    "the texture changes beneath your feet—grit to silk to grit",
-    "heat radiates from somewhere below, rising through your boots",
-    "moisture collects on your skin despite no visible source",
-    "the metal hums against your palm, resonant and alive",
-]
-
-# ── Verbs by intensity ────────────────────────────────────────────────────────
-
-VERBS_MOTION_LOW = ['drift','ease','slip','edge','glide','pad','creep','thread','weave','meander']
-VERBS_MOTION_MED = ['stride','push','navigate','carve','trace','press','cut','cross','climb','wade']
-VERBS_MOTION_HIGH = ['hurtle','plunge','sprint','crash','barrel','lunge','vault','scramble','dive','bolt']
-
-VERBS_LOOK = ['study','examine','trace','scan','peer at','squint at','survey','scrutinize','observe','drink in']
-VERBS_DISCOVER = ['uncover','reveal','expose','stumble upon','find','unearth','notice','recognize','spot','identify']
-VERBS_REACT = ['freeze','flinch','steady yourself','catch your breath','clench your jaw','narrow your eyes',
-               'feel your pulse spike','swallow hard','set your stance','grip tighter']
-
-# ── Adjectives by mood ────────────────────────────────────────────────────────
-
-ADJ_TENSE = ['jagged','fractured','raw','unstable','volatile','razor-thin','trembling',
-             'brittle','charged','suffocating','razor-edged','taut','splintered']
-ADJ_MYSTERIOUS = ['impossible','shifting','mercurial','liminal','half-formed','othered',
-                  'refracted','dreamlike','uncanny','spectral','gossamer','elusive']
-ADJ_CALM = ['weathered','settled','patient','worn-smooth','ancient','quiet','still',
-            'moss-draped','sun-warmed','slow','unhurried','gentle','amber-lit']
-ADJ_DARK = ['lightless','hollow','rotting','gnawed','sepulchral','blackened','corroded',
-            'festering','rank','sunken','pitted','scabrous','withered']
-
-# ── Environmental fragments ───────────────────────────────────────────────────
-
-ENV_DETAILS = [
-    "cracks web across the {surface} like veins in old skin",
-    "water has carved channels into the {surface} over centuries",
-    "{growth} pushes through every gap, stubborn and blind",
-    "the {surface} bears marks—deliberate, scored deep by something sharp",
-    "layers of {deposit} have built up in rippled formations",
-    "the {structure} tilts at an angle that suggests violence, not time",
-    "everything here is coated in a fine layer of {substance}",
-    "{light_source} casts the space in shades of {color} and deep shadow",
-    "the {structure} is older than it should be—impossibly, unsettlingly old",
-    "nature is reclaiming this place with {growth} and {substance}",
-    "the geometry feels intentional—someone built this, someone with purpose",
-    "erosion has softened every edge into something almost organic",
-]
+These pools are intentionally narrow. Each entry supports a concrete scene fact:
+NPC memory, faction pressure, location changes, identity callbacks, or delayed
+consequence. Broad sensory/metaphor fragments were removed because they allowed
+the engine to decorate scenes with unsupported nouns.
+"""
 
 ENV_VARS = {
-    'surface': ['stone','metal','wood','crystal','bone','glass','earth','ceramic','iron','granite'],
-    'growth': ['lichen','roots','fungi','moss','vines','coral','barnacles','crystals','mold','creepers'],
-    'deposit': ['calcium','mineral','salt','ice','sediment','ash','dust','sand','rust','resin'],
-    'structure': ['archway','column','wall','ceiling','floor','doorframe','staircase','bridge','altar','throne'],
-    'substance': ['dust','ash','salt','frost','grime','pollen','soot','spores','condensation','residue'],
-    'light_source': ['bioluminescence','filtered sunlight','a single torch','reflected water-light',
-                     'phosphorescent fungi','distant fire','cracks in the ceiling','an unknown source',
-                     'crystalline refraction','dying embers'],
-    'color': ['amber','cobalt','violet','copper','jade','silver','crimson','ochre','teal','bone-white'],
+    "surface": [
+        "stone",
+        "wood",
+        "iron",
+        "mud",
+        "road dust",
+        "oilcloth",
+        "granite",
+        "salt",
+        "ash",
+        "old paper",
+    ],
 }
 
-# ── Character/NPC fragments ──────────────────────────────────────────────────
-
-NPC_INTROS = [
-    "A figure materializes from the {adj} gloom—{desc}. {detail}.",
-    "Someone is already here. {desc}, {posture}. {detail}.",
-    "You almost miss them—{desc}, nearly invisible against the {background}. {detail}.",
-    "A voice reaches you before the face does. {desc} steps into view, {posture}. {detail}.",
-    "Movement. Your hand moves to defend before your mind catches up. It's {desc}, {posture}.",
+NPC_TICS = [
+    "they touch the signet at their throat before answering",
+    "they count your exits with one slow movement of the eyes",
+    "they rub old ink from the side of their thumb",
+    "they pause whenever your pack shifts, listening for metal",
+    "they keep their wounded side angled away from you",
+    "they fold every sentence as carefully as a letter",
+    "they check the road behind you before meeting your gaze",
+    "they press two fingers against a hidden charm under the coat",
+    "they speak only after the rain has filled the silence",
+    "they hold still in the practiced way of someone avoiding notice",
+    "they smile too late, as if remembering the shape of courtesy",
+    "they watch your hands instead of your face",
+    "they move their jaw around a name they will not say",
+    "they tap a route-map rhythm against their sleeve",
+    "they breathe through pain and pretend it is patience",
 ]
 
-NPC_DESCS = [
-    "tall, gaunt, wrapped in layers of {fabric}",
-    "small and sharp-eyed, hands never still",
-    "broad-shouldered, face mapped with old scars",
-    "young—too young for the exhaustion in their eyes",
-    "ancient, steady, radiating a quiet authority",
-    "hooded, their face a geometry of shadow and cheekbone",
-    "lean and coiled, every movement precise and economical",
-    "weathered, sun-dark, with hands like old leather",
-    "pale and luminous, as if lit from within",
-    "hunched, muttering, fingers tracing patterns in the air",
+NPC_ARCHETYPES = [
+    "border scout",
+    "debt clerk",
+    "pilgrim courier",
+    "failed officer",
+    "salt broker",
+    "road surgeon",
+    "abbey informant",
+    "map thief",
+    "gravewarden witness",
+    "runaway heir",
+    "muted negotiator",
+    "cart road saboteur",
+    "black ford guide",
+    "ledger priest",
 ]
 
-NPC_POSTURES = [
-    "watching you with an expression you can't read",
-    "one hand resting on something at their hip",
-    "leaning against the wall like they've been waiting",
-    "crouched over something they shield with their body",
-    "standing perfectly still, unnervingly still",
-    "pacing a tight circle, wearing a groove in the ground",
-    "arms crossed, chin raised, measuring you",
-    "turned half away, as if deciding whether to bolt",
+NPC_SECRETS = [
+    "they sold a route that should have stayed unwritten",
+    "they know which faction burned the toll records",
+    "they are carrying a message addressed to your old name",
+    "they watched a patrol vanish and reported the wrong direction",
+    "they have been paid twice to betray the same traveler",
+    "they hid a survivor where the official count says none remained",
+    "they can identify the mark that keeps appearing near your path",
+    "they owe protection to someone who wants you delayed",
+    "they remember your role from a version of the story you deny",
+    "they buried a key under a milestone and no longer know why",
 ]
 
-NPC_DETAILS = [
-    "Their eyes hold knowledge they aren't sharing",
-    "A fresh wound on their forearm seeps through cloth",
-    "They carry something wrapped in stained fabric",
-    "The air around them smells of herbs and desperation",
-    "Their breathing is controlled—trained, deliberate",
-    "Something about their posture says military, or worse",
-    "They flinch at a sound only they can hear",
-    "Their gear is expensive but damaged—someone who fell far",
+NPC_WANTS = [
+    "to leave the region before the weather closes the road",
+    "to trade information without becoming its owner",
+    "to make you choose a side where neutrality used to be possible",
+    "to recover a ledger before the names inside it start dying",
+    "to buy one clean hour for someone they failed",
+    "to learn whether your reputation is useful or fatal",
+    "to pass a warning to the Glass Abbey without being seen",
+    "to have their betrayal understood as necessity",
+    "to test whether you are the kind of person rumours claim",
+    "to move a hidden witness from one danger into another",
 ]
 
-DIALOGUE_OPENERS = [
-    '"You shouldn\'t be here." Their voice is {tone}.',
-    '"Finally." The word drops like a stone. {reaction}.',
-    '"Don\'t move." {reaction}. "Not yet."',
-    '"I\'ve been waiting for someone. Not you, specifically. But someone." {reaction}.',
-    '"Turn back." Their eyes flick past you. "While turning back is still an option."',
-    '"You see it too, don\'t you?" {reaction}. "Tell me you see it."',
-    '"Three others came this way. None came back." {reaction}.',
-    '"I can help you. For a price." {reaction}.',
-    'They say nothing. Just extend a hand—palm up, offering something small and glinting.',
-    '"How much do you know?" {reaction}. "About any of this?"',
+NPC_LOYALTIES = [
+    "soldiers in red",
+    "the Toll Guild",
+    "the Glass Abbey",
+    "moth-cloaked pilgrims",
+    "gravewardens",
+    "salt smugglers",
+    "exiled banner-men",
+    "keepers of the old road",
+    "the Hollow Court",
+    "the Cartographers Accord",
+    "black border scouts",
+    "border healers",
 ]
 
-TONES = ['flat, drained of everything','a rasp, barely above a whisper',
-         'steady, rehearsed, like they\'ve said it before',
-         'sharp enough to cut','warm, unexpectedly warm',
-         'trembling despite their best effort','hollow, echoing oddly',
-         'musical, lilting, wrong for the setting']
+NPC_MEMORY_REACTIONS = {
+    "ally": [
+        "Their guarded face softens by one careful degree; they remember what you risked.",
+        "They leave space beside the fire without offering it aloud.",
+        "They answer the question you are too proud to ask first.",
+    ],
+    "neutral": [
+        "They measure you against what the road has been saying.",
+        "They keep courtesy between you like a knife laid flat.",
+        "They remember enough to be cautious, not enough to be kind.",
+    ],
+    "hostile": [
+        "The look they give you has already made its decision.",
+        "They use your name like evidence.",
+        "Nothing in their posture offers a road back to trust.",
+    ],
+}
 
-REACTIONS = [
-    'You feel your jaw tighten','Something cold settles in your chest',
-    'The hairs on your arms lift','Your hand moves instinctively',
-    'A beat of silence stretches too long','You hold their gaze, reading nothing',
-    'Trust wars with instinct inside you','The weight of the moment lands hard',
+NPC_DIALOGUE = [
+    '"You have been described badly; I am deciding whether badly means accurately."',
+    '"Names move faster than feet here. Yours arrived wet, cold, and armed."',
+    '"If you want truth, pay in something heavier than coin."',
+    '"No one crosses this stretch without owing a future favor."',
+    '"The road has started making room for you. That should frighten you."',
+    '"I can tell you who saw it. I cannot promise they are still alive."',
+    '"Speak carefully. Half the roofs here repeat what they hear."',
+    '"I know what you did two villages back. I know who survived it."',
+    '"There is a version of this story where you turn around. I recommend it."',
+    '"You carry old weather with you. People notice."',
+    '"Ask the right question and I will risk a useful answer."',
+    '"Do not mistake silence for ignorance. We keep accounts."',
 ]
 
-# ── Action response fragments ────────────────────────────────────────────────
-
-FIGHT_FRAGMENTS = [
-    "You commit to the strike—weight forward, no hesitation. {outcome}.",
-    "Instinct overrides thought. Your body moves before the decision is fully made. {outcome}.",
-    "The first blow connects with a sound like {impact}. {outcome}.",
-    "You close the distance in two steps, reading their center of gravity. {outcome}.",
-    "Everything narrows to a single point of focus. {outcome}.",
+PIVOT_BEATS = [
+    "By sunset, {faction} has barred the road behind {location}; return will now cost more than courage.",
+    "{npc} changes allegiance in the space between one breath and the next, and {region} quietly changes with them.",
+    "A witness repeats what you did earlier, but the rumour has grown teeth by the time it reaches {region}.",
+    "The old path near {location} is gone, swallowed by weather, sabotage, or a decision made without you.",
+    "Someone spends your name as currency, and {faction} accepts it at a ruinous rate.",
+    "A local account in {region} adds one unpaid line pointing back to {wound}.",
+    "The faction banners at {location} are rehung before dawn, and nobody admits who ordered it.",
+    "An ally near {location} pays for helping you, which means the help has become part of the world's debt.",
+    "{faction} hears of the {item} at {location} and starts treating it as proof.",
+    "The weather turns around {location} as if the road itself has chosen a side.",
 ]
 
-FIGHT_OUTCOMES = [
-    "The impact reverberates up your arm. Something gives, but you can't tell whose",
-    "They stagger. Not enough. They're already adjusting, already countering",
-    "Contact. Solid. The shock of it jolts through you like voltage",
-    "They're faster than expected. Your strike grazes but doesn't land clean",
-    "For one frozen second, you see surprise in their eyes. Then the moment shatters",
+AMBIENT_EVENTS = {
+    "road": [
+        "A cart passes with its wheels wrapped in cloth, hiding either cargo or grief.",
+        "Someone has corrected the mile marker by knife, then corrected the correction.",
+        "The ditch holds fresh bootprints facing both directions and belonging to no visible traveler.",
+        "A toll notice has been nailed over a prayer, and both are still wet.",
+    ],
+    "settlement": [
+        "Market voices lower as you pass, then rise behind you in a different arrangement.",
+        "A child is pulled indoors before they can finish pointing at your gear.",
+        "Someone has left bread on a windowsill with a black thread tied through it.",
+        "The inn sign has been turned inward, as if hospitality has become a private matter.",
+    ],
+    "ruin": [
+        "Old ash shifts in a wind that does not reach your face.",
+        "A carved name has been recently scratched out with professional patience.",
+        "Water collects in the stone sockets of statues whose eyes were removed long ago.",
+        "Someone has swept one path clean through the dust, then vanished from it.",
+    ],
+    "wilderness": [
+        "Birdsong stops in sections, as though the trees pass warning by border.",
+        "The mud preserves a running track that begins without approach.",
+        "A snare hangs open, bait untouched, trigger already sprung.",
+        "Rainwater gathers in hoofprints too large for any local horse.",
+    ],
+    "interior": [
+        "A latch clicks somewhere in the walls and then regrets the sound.",
+        "The hearth is cold, but ash has been stirred within the hour.",
+        "A ledger page curls near the flame without burning.",
+        "Dust has been cleared from one chair and no others.",
+    ],
+}
+
+ROLE_CALLBACKS = [
+    "The {role} in you reads the room before the rest of you admits there is danger.",
+    "Old habits from your life as a {role} rise through your hands, practical and unwelcome.",
+    "You notice what another traveler would miss because the road is speaking to the {role} you used to be.",
+    "For a moment, the {role} returns: not as title, but as reflex.",
+    "The scene asks for nerve, but your answer comes first from the {role}'s training.",
 ]
 
-STEALTH_FRAGMENTS = [
-    "You press into the {cover}, controlling each breath until it matches the silence. {detail}",
-    "Movement becomes meditation—each step placed with surgical patience. {detail}",
-    "You find the rhythm of this place and slip between its beats. {detail}",
-    "Shadow becomes ally, texture becomes map. You navigate by absence. {detail}",
+WOUND_CALLBACKS = [
+    "The old wound returns as a bodily fact: {wound}, carried under the ribs rather than in memory.",
+    "For one breath you are back inside {wound}, and the present has to wait its turn.",
+    "The scene touches {wound} with a cold finger, and your next choice narrows.",
+    "You thought {wound} had gone quiet. It had only learned patience.",
+    "Something in the air names {wound} without words.",
 ]
 
-EXPLORE_FRAGMENTS = [
-    "You {look_verb} the space with fresh attention, letting details surface. {finding}.",
-    "Running your hands along the {surface}, you feel for what eyes might miss. {finding}.",
-    "You work the area methodically—left to right, top to bottom, missing nothing. {finding}.",
-    "Something about the {feature} doesn't sit right. You look closer. {finding}.",
-    "Pattern recognition kicks in. What seemed random resolves into {finding}.",
+DRIVE_CALLBACKS = [
+    "Your {drive} does not speak grandly. It tightens your grip and keeps you moving.",
+    "The road offers reasons to stop; your {drive} answers each one badly but firmly.",
+    "You feel {drive} become less like motive and more like weather.",
+    "At this pressure, {drive} is the only honest map you have left.",
+    "Whatever else has changed, {drive} still knows the shape of forward.",
 ]
 
-FINDINGS = [
-    "there—a seam in the {surface} that shouldn't exist, behind it, hollow space",
-    "markings, recent ones, overlaid on much older ones, telling a different story",
-    "a mechanism, disguised as ornament, yields under pressure with a soft click",
-    "the proportions are wrong — this space is smaller inside than outside",
-    "residue — chemical, biological, impossible to identify but definitely recent",
-    "a draft, barely perceptible, from a direction that makes no architectural sense",
-    "scratches in the {surface} — not random, a message left by someone in a hurry",
+CONSEQUENCE_FRAGMENTS = [
+    "What you did at {location} has reached {region} ahead of you, carried by {heard_by}.",
+    "{witnessed_by} saw enough at {location} to make a shorter, harsher story of it.",
+    "A debt opens from an earlier choice: {description}",
+    "The local faction has adjusted its manners around what happened at {location}; this is not forgiveness.",
+    "Someone repeats your action without your context, and the world judges the shorter version.",
+    "The delayed cost arrives without ceremony: {description}",
+    "A colder greeting waits near {location}; consequence has learned logistics.",
+    "{location} remembers not the decision, but the damage pattern it left behind.",
 ]
-
-COVERS = ['deepest shadow','narrow alcove','gap between structures','rubble',
-          'overgrown recess','fallen debris','natural formation','dark pocket']
-
-IMPACTS = ['cracking timber','a bell struck wrong','splitting stone','wet cloth tearing',
-           'an axe hitting frozen wood','a door slamming shut','bone on bone','breaking ceramic']
-
-# ── Transition & consequence fragments ────────────────────────────────────────
-
-TRANSITIONS = [
-    "The {passage} opens into something entirely different. {first_impression}.",
-    "You emerge from the {passage} and stop dead. {first_impression}.",
-    "The landscape transforms within a dozen steps. {first_impression}.",
-    "A threshold—physical, maybe more. Beyond it, {first_impression}.",
-    "The world rearranges itself around a corner. {first_impression}.",
-]
-
-FIRST_IMPRESSIONS = [
-    "Scale hits first—this space is vast, cathedral-vast, and humming with {quality}",
-    "The air changes instantly: {quality}, sharp, alive with {element}",
-    "Everything here is {adj}—the walls, the floor, even the light itself",
-    "Your body registers danger before your mind names it. Something is deeply {adj} here",
-    "Beauty, unexpected and fierce. {element} catches the light like {simile}",
-    "Ruin. Complete, thorough, and very recent. {element} still {verb} in the aftermath",
-]
-
-QUALITIES = ['stillness','energy','decay','growth','absence','presence','wrongness',
-             'anticipation','age','power','grief','hunger','memory','potential']
-ELEMENTS = ['crystal formations','running water','suspended particles','living light',
-            'root systems','mineral deposits','thermal vents','ancient machinery',
-            'organic structures','electrical discharge','frozen time','moving shadow']
-SIMILES = ['shattered cathedral glass','liquid mercury','a held breath','spilled ink',
-           'burning magnesium','frozen lightning','shed skin','scattered teeth']
-
-# ── Consequence/continuity phrases ────────────────────────────────────────────
-
-CALLBACKS = [
-    "The {item} you found earlier pulses once, responding to something here",
-    "This connects to what the {npc} said—the pattern is becoming clearer",
-    "You've seen these markings before. The same hand, the same urgency",
-    "Whatever happened at the {location}, it started here. Or ended here",
-    "The {item} feels different now—heavier, warmer, more insistent",
-    "You remember the {npc}'s warning. They were right about more than you credited",
-]
-
-# ── Hook/cliffhanger closers ─────────────────────────────────────────────────
-
-HOOKS = [
-    "Then you see it. And everything you thought you understood rearranges itself.",
-    "A sound reaches you—distant, deliberate, and heading this way.",
-    "The ground shifts. Not an earthquake. Something underneath. Something aware.",
-    "You realize, with cold clarity, that you are not the first to stand here today.",
-    "The way back has changed. You're certain of it. The geometry is different now.",
-    "Something watches. You can't see it. You can't prove it. But you know.",
-    "A choice presents itself—one that can't be unmade once taken.",
-    "The silence that follows is louder than anything that came before.",
-    "Your instincts scream two contradictory warnings at once.",
-    "And then the light goes out.",
-    "In the distance, something answers.",
-    "It moves. Whatever it is—it moves.",
-    "You hear your own name. Spoken clearly. From the wrong direction.",
-    "The mark on the wall matches the mark on your skin. Exactly.",
-    "You have seconds to decide. The window is already closing.",
-]
-
-# ── Choice verb pools ─────────────────────────────────────────────────────────
-
-CHOICE_VERBS_BOLD = ['confront','breach','challenge','seize','charge','push into',
-                     'demand answers from','face down','break through','force open']
-CHOICE_VERBS_CAUTIOUS = ['observe','circle around','test carefully','wait for',
-                         'listen at','study from cover','probe','feel out','shadow','map']
-CHOICE_VERBS_CLEVER = ['exploit','redirect','repurpose','decode','outsmart',
-                       'find leverage in','reverse-engineer','piece together','dismantle','unravel']
