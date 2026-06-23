@@ -210,3 +210,174 @@ CONSEQUENCE_FRAGMENTS = [
     "A colder greeting waits near {location}; consequence has learned logistics.",
     "{location} remembers not the decision, but the damage pattern it left behind.",
 ]
+
+# ── Overhaul v4 Systems additions ─────────────────────────────────────────────
+
+THEME_KEYWORDS = {
+    'forest': ['forest', 'wood', 'grove', 'trees', 'thicket', 'canopy', 'branch', 'foliage', 'green', 'leaf', 'twigs', 'pine', 'sap', 'bark'],
+    'water': ['water', 'sea', 'ocean', 'drowned', 'sailor', 'ship', 'boat', 'lake', 'river', 'coast', 'causeways', 'surf', 'salt', 'reef', 'drown', 'wreck', 'cenote', 'tide'],
+    'ruins': ['ruin', 'spire', 'temple', 'cathedral', 'tower', 'stone', 'basalt', 'milestone', 'statue', 'lintel', 'cairn', 'archway', 'obelisk', 'city', 'vanished', 'pueblo', 'excavation'],
+    'stealth': ['spy', 'documents', 'stolen', 'thief', 'border', 'soldier', 'patrol', 'secret', 'hidden', 'cautious', 'sneak', 'war-torn', 'crosses', 'informant'],
+    'cold': ['frost', 'ice', 'snow', 'winter', 'chill', 'glacier', 'frozen', 'gloom', 'cold', 'sour']
+}
+
+MOTIFS = {
+    'broken_mirrors': {
+        'low': "A tiny shard of silvered glass catches the light in the dirt, reflecting a fractured sky.",
+        'medium': "Cracked glass fragments catch the light at your feet, showing your face split into unrecognizable halves.",
+        'high': "A shattered mirror hangs askew nearby, its sharp shards shivering in the wind like a silent scream."
+    },
+    'distant_bells': {
+        'low': "A faint, brass chime sounds from somewhere beyond the ridge, fading quickly.",
+        'medium': "The iron bell of a distant chapel tolls three slow, heavy strokes through the fog.",
+        'high': "A deafening, rhythmic tolling echoes off the surrounding stone, filling the air with the taste of old bronze."
+    },
+    'black_dust': {
+        'low': "A fine layer of soot-like ash covers the nearby surfaces.",
+        'medium': "Black, upward-dripping residue pools in the deep hollows of the path.",
+        'high': "A dark, choking smoke rises from the dry soil, smelling of ancient lightning."
+    },
+    'water_marks': {
+        'low': "A damp outline showing high-water levels stains the nearest vertical stone.",
+        'medium': "Upward-dripping moisture pools on the underside of the rock overhead.",
+        'high': "Water seeps directly from the dry grain of the wood, carrying the cold smell of old salt."
+    }
+}
+
+# Rich variant templates for the story beats. Keys are beats, values are lists of templates.
+PROSE_TEMPLATES = {
+    'discovery': [
+        {
+            'format': "sensory_first",
+            'intro': "Under the {weather} of the {location}, a quiet detail presents itself. {motif_text}",
+            'body': "Your decision to {action_verb} leads you directly to {object_name}. The {location_noun} feels less like a new path and more like a line drawn by someone who knew you were coming.",
+            'beat': "Here, the {features[0]} has been left exposed, bearing the markings of the {faction}.",
+            'hook': "The next useful truth remains buried somewhere in this {location_noun}."
+        },
+        {
+            'format': "action_first",
+            'intro': "You choose to {action_verb} near the {features[0]}, forcing the {location_noun} to yield a response.",
+            'body': "The {object_name} catches the light. {motif_text} In the surrounding {region}, where the {faction} holds sway, details do not hide without a purpose.",
+            'beat': "A careful inspection reveals a physical trace: {description_detail}.",
+            'hook': "What you did here will not stay quiet for long."
+        }
+    ],
+    'encounter': [
+        {
+            'format': "observational",
+            'intro': "The {features[0]} at the {location_noun} is not empty. {motif_text}",
+            'body': "A figure steps from the shadow of the {features[0]}. It is {npc_name}, a {npc_archetype} whose eyes are already counting your gear.",
+            'beat': "{npc_tic_text} {npc_memory_text} \"I know what path you have walked,\" they whisper. \"{npc_dialogue}\"",
+            'hook': "{npc_short_name} watches you closely, waiting to see if your silence matches your reputation."
+        },
+        {
+            'format': "tense",
+            'intro': "The tension at the {location_noun} thickens as {weather} settles over the {features[0]}.",
+            'body': "You confront {npc_name} by the {features[0]}, the {object_name} still between you. They stand as a {npc_archetype} who knows what faction holds the road here.",
+            'beat': "{npc_tic_text} {npc_memory_text} \"If you came for answers,\" they say, \"speak with the {faction} first.\" {npc_dialogue}",
+            'hook': "The space between you remains narrow and cold."
+        }
+    ],
+    'obstacle': [
+        {
+            'format': "tense",
+            'intro': "The path forward through the {location_noun} is blocked. {motif_text}",
+            'body': "The {features[0]} forms a barrier that your map maker's eye did not account for. Attempting to {action_verb} here will leave an obvious trail for the {faction} to follow.",
+            'beat': "A heavy barrier of wood and iron blocks the line; forcing it will require Strength or Cunning.",
+            'hook': "The road demands a price, and the nearest witnesses are already watching."
+        },
+        {
+            'format': "reflective",
+            'intro': "Your history as a {role} taught you to look for the structural weakness in any block. {motif_text}",
+            'body': "You check the obstruction at the {location_noun}. The {object_name} offers a leverage point, but the memory of {wound} makes you pause.",
+            'beat': "The block at the {features[0]} is deliberate; the {faction} clearly intended to seal this route.",
+            'hook': "You must decide what you are willing to break to pass."
+        }
+    ],
+    'revelation': [
+        {
+            'format': "reflective",
+            'intro': "A moment of stillness catches you at the {location_noun}. {motif_text}",
+            'body': "By the light of the {weather}, the true nature of the {object_name} becomes legible. Your wound, {wound}, echoes in the silence.",
+            'beat': "The {features[0]} reveals a hidden truth: {description_detail}. The {faction} has been active here, and their records are incomplete.",
+            'hook': "The truth is yours now, but its weight is already shifting."
+        },
+        {
+            'format': "observational",
+            'intro': "You study the {object_name} under the shade of the {features[0]}.",
+            'body': "The details align. What you wanted to find at the {location_noun} is gone, but this place leaves a different answer: {description_detail}.",
+            'beat': "A local sign matches the rumors about {faction} in {region}.",
+            'hook': "You have the line; now you must choose where it leads."
+        }
+    ],
+    'transition': [
+        {
+            'format': "action_first",
+            'intro': "You press onward, leaving the {location_noun} behind as the {weather} worsens.",
+            'body': "Your choice to {action_verb} opens a line out of the area. {motif_text} Your reputation as {reputation} travels faster than your boots.",
+            'beat': "A narrow causeway leading toward {region} becomes visible near the {features[0]}.",
+            'hook': "The next stretch of road waits, unmapped and silent."
+        },
+        {
+            'format': "sensory_first",
+            'intro': "The light shifts over the {features[0]}, indicating that your time at the {location_noun} is done. {motif_text}",
+            'body': "You map a route past the {object_name}. The {faction} patrols the border, but the {role} in you knows how to read the landscape for exits.",
+            'beat': "The path shifts toward a new region, leaving the old marks behind.",
+            'hook': "Ahead lies the boundary of {region}."
+        }
+    ],
+    'conflict': [
+        {
+            'format': "tense",
+            'intro': "Danger stops being atmospheric at the {location_noun}. {motif_text}",
+            'body': "The sound of steel or shouting echoes near the {features[0]}. You face the threat with the {object_name} in hand, your drive for {drive} tightening your grip.",
+            'beat': "The clash costs you; pain blooms under the ribs as the patrol closes the exits.",
+            'hook': "The conflict is active, and only force or quick movement will resolve it."
+        },
+        {
+            'format': "action_first",
+            'intro': "You strike first by the {features[0]}, choosing the aggressive line before the {location_noun} can turn against you.",
+            'body': "Your actions at the {location_noun} are witnessed by the {faction}. {motif_text} The cost of this confrontation is written on the road.",
+            'beat': "The clash is brief but violent, leaving marks on the stone and your body.",
+            'hook': "The echoes of this violence will reach the next town before you do."
+        }
+    ],
+    'rest': [
+        {
+            'format': "reflective",
+            'intro': "For a short while, the {location_noun} gives you cover under the {weather}. {motif_text}",
+            'body': "You rest by the hearth or the treeline, counting your wounds. You look at your {object_name}, letting {wound} fade into the quiet background.",
+            'beat': "Your stats show the cost of the road, but the silence here is a temporary shield.",
+            'hook': "The road is waiting, but for now, you breathe."
+        },
+        {
+            'format': "observational",
+            'intro': "The quiet at the {location_noun} holds. {motif_text}",
+            'body': "You take shelter near the {features[0]}, checking your supplies. In {region}, the local rumors about {faction} feel distant for a moment.",
+            'beat': "You update your notes or your map, tracing the lines of where you have bled.",
+            'hook': "The silence will break when the dawn comes."
+        }
+    ]
+}
+
+PREMISE_NOUN_PHRASING = {
+    'sister': ('your sister', 'person'),
+    'brother': ('your brother', 'person'),
+    'father': ('your father', 'person'),
+    'mother': ('your mother', 'person'),
+    'friend': ('your friend', 'person'),
+    'god': ('the drowned god', 'person'),
+    'fighter': ('your identity as a fighter', 'person'),
+    'cartographer': ('your identity as a cartographer', 'person'),
+    'sailor': ('your identity as a sailor', 'person'),
+    'spy': ('your identity as a spy', 'person'),
+    'healer': ('your identity as a healer', 'person'),
+    'city': ('the vanished city', 'place'),
+    'border': ('the war-torn border', 'place'),
+    'forest': ('the frost-bitten forest', 'place'),
+    'ruins': ('the plague ruins', 'place'),
+    'cure': ('the cure', 'object'),
+    'documents': ('the stolen documents', 'object'),
+    'rumors': ('the rumors', 'object'),
+}
+

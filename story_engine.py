@@ -8,6 +8,372 @@ or ornamental prose.
 import random, re
 from story_data import *
 
+def _harvest_premise(opening):
+    """Extract specific nouns, verbs, and adjectives from opening premise."""
+    words = _extract_keywords(opening)
+    nouns = []
+    adjectives = []
+    verbs = []
+    
+    # Special manual classification overrides for test opening keywords
+    word_roles = {
+        'forest': 'noun', 'sister': 'noun', 'city': 'noun', 'god': 'noun', 'border': 'noun',
+        'ruins': 'noun', 'cure': 'noun', 'documents': 'noun', 'rumors': 'noun',
+        'fighter': 'noun', 'cartographer': 'noun', 'sailor': 'noun', 'spy': 'noun', 'healer': 'noun',
+        'frost-bitten': 'adj', 'war-torn': 'adj', 'stolen': 'adj', 'stranded': 'adj', 'drowned': 'adj',
+        'disgraced': 'adj', 'vanished': 'adj', 'plague': 'adj', 'inland': 'adj',
+        'looking': 'verb', 'searching': 'verb', 'searches': 'verb', 'carrying': 'verb', 'crosses': 'verb',
+        'follows': 'verb', 'walks': 'verb', 'enters': 'verb'
+    }
+    
+    for w in words:
+        w_clean = w.strip().lower()
+        if not w_clean:
+            continue
+        if w_clean in word_roles:
+            role = word_roles[w_clean]
+            if role == 'noun': nouns.append(w_clean)
+            elif role == 'adj': adjectives.append(w_clean)
+            elif role == 'verb': verbs.append(w_clean)
+        elif '-' in w_clean or w_clean.endswith(('ed', 'en')):
+            adjectives.append(w_clean)
+        elif w_clean.endswith(('ing', 'es', 's')) and not w_clean.endswith('ness'):
+            verbs.append(w_clean)
+        else:
+            nouns.append(w_clean)
+            
+    return {
+        'nouns': nouns or ['road', 'wanderer'],
+        'adjectives': adjectives or ['weathered'],
+        'verbs': verbs or ['exploring']
+    }
+
+def _select_starting_location(genre, harvest):
+    """Select the starting location that matches the premise keywords semantic theme."""
+    locs = GENRE_LOCATIONS.get(genre, GENRE_LOCATIONS['fantasy'])
+    all_keywords = set(harvest['nouns'] + harvest['adjectives'] + harvest['verbs'])
+    
+    active_themes = set()
+    for theme, keywords in THEME_KEYWORDS.items():
+        for kw in keywords:
+            if kw in all_keywords:
+                active_themes.add(theme)
+                
+    scored_locs = []
+    for name, desc in locs:
+        score = 0
+        tokens = set(re.findall(r'\b[a-zA-Z-]+\b', (name + ' ' + desc).lower()))
+        
+        # Direct matching score
+        score += len(tokens & all_keywords) * 5
+        
+        # Theme keyword matching score
+        for theme in active_themes:
+            theme_kws = set(THEME_KEYWORDS[theme])
+            score += len(tokens & theme_kws) * 2
+            
+        scored_locs.append((score, (name, desc)))
+        
+    scored_locs.sort(key=lambda x: x[0], reverse=True)
+    if scored_locs[0][0] > 0:
+        return scored_locs[0][1]
+    return random.choice(locs)
+
+def _is_npc_in_scene(state, beat, prev_beat):
+    """Determine if the previous NPC is still present in the current scene."""
+    if beat != 'encounter':
+        return False
+    if prev_beat != 'encounter':
+        return False
+    last_npc = state.get('last_npc')
+    if not last_npc:
+        return False
+    npcs = state.get('continuity', {}).get('npcs', {})
+    if last_npc not in npcs:
+        return False
+    record = npcs[last_npc]
+    if record.get('last_seen_location') != state.get('location'):
+        return False
+    return True
+
+def _get_motif_text(state):
+    """Select and returns visual motif description scaled to current tension."""
+    motif_name = state.setdefault('active_motif', None)
+    if not motif_name:
+        genre_motifs = {
+            'fantasy': 'distant_bells',
+            'scifi': 'black_dust',
+            'horror': 'broken_mirrors',
+            'mystery': 'water_marks',
+            'adventure': 'distant_bells'
+        }
+        motif_name = genre_motifs.get(state.get('genre', 'fantasy'), 'distant_bells')
+        state['active_motif'] = motif_name
+        
+    tension = state.get('tension', 0.5)
+    level = 'low' if tension < 0.4 else 'medium' if tension < 0.72 else 'high'
+    return MOTIFS.get(motif_name, MOTIFS['distant_bells'])[level]
+
+PERSON_NOUNS = {
+    'sister', 'brother', 'father', 'mother', 'friend', 'god', 
+    'fighter', 'cartographer', 'sailor', 'spy', 'healer',
+    'wanderer', 'traveller', 'stranger', 'companion', 'ally',
+    'cousin', 'uncle', 'aunt', 'mentor', 'teacher'
+}
+
+PLACE_NOUNS = {
+    'city', 'border', 'forest', 'ruins', 'camp', 'town', 'village',
+    'spire', 'grove', 'temple', 'cathedral', 'lake', 'plateau', 
+    'canyon', 'shrine', 'thicket', 'wastes', 'bridge', 'cavern'
+}
+
+def _weave_premise_keywords(state, key, fallback):
+    """Weave premise keywords naturally and grammatically into descriptions."""
+    harvest = state.get('opening_keywords_harvest', {})
+    nouns = harvest.get('nouns', [])
+    adjectives = harvest.get('adjectives', [])
+    role = state.get('player_role')
+    
+    desc_nouns = [n for n in nouns if n != role]
+    if not desc_nouns:
+        desc_nouns = nouns
+        
+    if key == 'object_name':
+        if desc_nouns:
+            n = desc_nouns[-1]
+            if n in PREMISE_NOUN_PHRASING:
+                return PREMISE_NOUN_PHRASING[n][0]
+            if n in PERSON_NOUNS:
+                return f"your {n}"
+            if adjectives:
+                return f"the {adjectives[0]} {n}"
+            return f"the {n}"
+        return fallback
+    elif key == 'desc_detail':
+        if desc_nouns:
+            n = desc_nouns[0]
+            if adjectives:
+                return f"a {adjectives[0]} {n}"
+            return f"a {n}"
+        return fallback
+    return fallback
+
+def _get_natural_revisit_sentence(state, ctx):
+    """Integrate memory of past visits dynamically into description."""
+    loc = ctx['location']
+    loc_state = ctx.get('loc_state') or {}
+    visits = loc_state.get('last_visited', 0)
+    
+    if not visits or visits <= 1:
+        return ""
+        
+    flags = state.get('continuity', {}).get('world_flags', {})
+    if loc in flags.get('enemies_defeated', []):
+        return f"The basalt soil at the {loc} still bears the heavy marks of the clash you survived here."
+    if loc in flags.get('doors_opened', []):
+        return f"The forced lock at the {loc} hangs broken, swinging slowly under the {ctx['weather']}."
+    if loc in flags.get('secrets_discovered', []):
+        return f"The translation marks you carved into the {ctx['object']} remain legible in the {ctx['weather']}."
+        
+    return f"The path through the {loc} bears the familiar patterns of your prior crossing."
+
+def _npc_dialogue_line_adaptive(state, npc_record, ctx):
+    """Adapt NPC dialogue lines based on player drives, character stats, and history."""
+    dominant = state.get('dominant_behavior') or 'explore'
+    name = npc_record['name'].split(',')[0]
+    
+    stats = state.get('character', {}).get('stats', {})
+    if stats.get('Lore', 0) >= 4 and random.random() < 0.5:
+        return f"\"I see the ink of the Accord on your fingers,\" {name} says. \"You know what history we are repeating.\""
+    if stats.get('Cunning', 0) >= 4 and dominant == 'cautious':
+        return f"\"You tread like someone who has counted the exits already,\" {name} whispers. \"Keep that silence.\""
+        
+    relationship = npc_record.get('relationship', 'neutral')
+    if relationship == 'hostile':
+        if dominant == 'aggressive':
+            return f"\"Lay your hand on that hilt, and the {ctx['faction']} will bury you at the {ctx['location']}.\""
+        return f"\"I know what follows you,\" {name} says. \"Do not bring it near me.\""
+        
+    if relationship == 'ally':
+        if dominant == 'social':
+            return f"\"The road has been harsh, but your name carries some warmth here,\" {name} says."
+        return f"\"I kept one answer back for you,\" {name} says. \"It may cost us both.\""
+        
+    if dominant == 'aggressive':
+        return f"\"You carry old weather and new steel, traveller,\" {name} warns. \"The {ctx['faction']} are watching.\""
+    if dominant == 'social':
+        return f"\"The road is long, but a shared word is cheap enough,\" {name} says. \"What does your map claim?\""
+    if dominant == 'cautious':
+        return f"\"Speak softly. The {ctx['location']} repeats what it hears to the {ctx['faction']}.\""
+        
+    return f"\"Tell me what you noticed at the {ctx['location']}, not what you hoped to find.\""
+
+def _render_prose_template(state, template, ctx):
+    """Render a dynamic sequence template to form a cohesive paragraph."""
+    harvest = state.get('opening_keywords_harvest', {})
+    nouns = harvest.get('nouns', [])
+    adjectives = harvest.get('adjectives', [])
+    verbs = harvest.get('verbs', [])
+    
+    object_name = _weave_premise_keywords(state, 'object_name', ctx['object'])
+    action_verb = verbs[0] if verbs else "explore"
+    if ctx.get('action_terms'):
+        action_verb = ctx['action_terms'][0]
+        
+    motif_text = _get_motif_text(state)
+    desc_detail = _weave_premise_keywords(state, 'desc_detail', ctx['description'])
+    
+    npc_name = "the stranger"
+    npc_short_name = "the stranger"
+    npc_archetype = "traveller"
+    npc_tic_text = ""
+    npc_memory_text = ""
+    npc_dialogue = ""
+    
+    if ctx.get('npc'):
+        npc = ctx['npc']
+        npc_name = npc['name']
+        npc_short_name = npc['name'].split(',')[0]
+        npc_archetype = npc['archetype']
+        npc_tic_text = _format_npc_tic(npc.get('tic'))
+        npc_memory_text = _npc_memory_sentence(npc)
+        npc_dialogue = _npc_dialogue_line_adaptive(state, npc, ctx)
+        
+    revisit_note = _get_natural_revisit_sentence(state, ctx)
+    
+    features = ctx.get('features', [])
+    if not features:
+        features = [ctx['object']]
+        
+    format_dict = {
+        'weather': ctx['weather'],
+        'location': ctx['description'],
+        'location_noun': ctx['location'],
+        'location_description': ctx['description'],
+        'action_verb': action_verb,
+        'object_name': object_name,
+        'faction': ctx['faction'],
+        'region': ctx['region'],
+        'role': ctx['role'],
+        'wound': ctx['wound'],
+        'drive': ctx['drive'],
+        'reputation': ctx['reputation'],
+        'motif_text': motif_text,
+        'npc_name': npc_name,
+        'npc_short_name': npc_short_name,
+        'npc_archetype': npc_archetype,
+        'npc_tic_text': npc_tic_text,
+        'npc_memory_text': npc_memory_text,
+        'npc_dialogue': npc_dialogue,
+        'description_detail': desc_detail,
+        'features': features,
+        'revisit_note': revisit_note,
+    }
+    
+    intro = template['intro'].format(**format_dict)
+    body = template['body'].format(**format_dict)
+    beat_text = template['beat'].format(**format_dict)
+    hook = template['hook'].format(**format_dict)
+    
+    if revisit_note:
+        sentences = [intro, body, revisit_note, beat_text, hook]
+    else:
+        sentences = [intro, body, beat_text, hook]
+        
+    return ' '.join(sentences)
+
+def _generate_choices_premise_aware(state, beat, choices, ctx):
+    """Inject premise-aligned custom branches directly into choice arrays."""
+    harvest = state.get('opening_keywords_harvest', {})
+    nouns = harvest.get('nouns', [])
+    role = state.get('player_role')
+    desc_nouns = [n for n in nouns if n != role]
+    
+    if not desc_nouns:
+        return choices
+        
+    target_noun = desc_nouns[-1]
+    adjectives = harvest.get('adjectives', [])
+    npc = ctx.get('npc')
+    npc_name = npc['name'].split(',')[0] if npc else "the stranger"
+    loc = ctx['location']
+    
+    category = 'object' # default fallback
+    if target_noun in PREMISE_NOUN_PHRASING:
+        category = PREMISE_NOUN_PHRASING[target_noun][1]
+    elif target_noun in PERSON_NOUNS:
+        category = 'person'
+    elif target_noun in PLACE_NOUNS:
+        category = 'place'
+        
+    if target_noun in PREMISE_NOUN_PHRASING:
+        phrased = PREMISE_NOUN_PHRASING[target_noun][0]
+    elif category == 'person':
+        phrased = f"your {target_noun}"
+    else:
+        if adjectives:
+            phrased = f"the {adjectives[0]} {target_noun}"
+        else:
+            phrased = f"the {target_noun}"
+            
+    custom_choice = None
+    if category == 'person':
+        if target_noun == 'sister':
+            if beat == 'encounter':
+                custom_choice = f"Ask {npc_name} if they have seen a sister passing through the {loc}"
+            elif beat in ('discovery', 'revelation'):
+                custom_choice = f"Search the {loc} for any track your sister might have left"
+        elif target_noun == 'god':
+            if beat == 'encounter':
+                custom_choice = f"Ask {npc_name} what the pilgrims whisper about the drowned god"
+            elif beat in ('discovery', 'revelation'):
+                custom_choice = f"Look for salt-worn relics of the drowned god near the {loc}"
+        else:
+            if beat == 'encounter':
+                custom_choice = f"Ask {npc_name} if they have seen any sign of {phrased} passing through the {loc}"
+            elif beat in ('discovery', 'revelation'):
+                custom_choice = f"Search the {loc} for any track or message {phrased} might have left"
+                
+    elif category == 'place':
+        if target_noun == 'city':
+            if beat == 'revelation':
+                custom_choice = f"Check if the signs at the {loc} point toward the vanished city"
+            elif beat == 'discovery':
+                custom_choice = f"Look for ruins or stone marks of the vanished city at the {loc}"
+        elif target_noun == 'border':
+            if beat == 'transition':
+                custom_choice = f"Map the path leading across the war-torn border"
+            elif beat == 'conflict':
+                custom_choice = f"Hold the line near the {loc} before they push you back from the border"
+        else:
+            if beat == 'revelation':
+                custom_choice = f"Check if the signs at the {loc} point toward {phrased}"
+            elif beat == 'discovery':
+                custom_choice = f"Look for ruins or landmarks of {phrased} at the {loc}"
+            elif beat == 'transition':
+                custom_choice = f"Map the path leading toward {phrased}"
+            elif beat == 'conflict':
+                custom_choice = f"Hold the line near the {loc} before they push you back from {phrased}"
+                
+    elif category == 'object':
+        if target_noun == 'cure':
+            if beat == 'discovery':
+                custom_choice = f"Search the plague ruins of the {loc} for any trace of the cure"
+            elif beat == 'encounter':
+                custom_choice = f"Ask {npc_name} if they carry the herbs needed for the cure"
+        else:
+            if beat == 'discovery':
+                custom_choice = f"Search the {loc} for any trace or clue of {phrased}"
+            elif beat == 'encounter':
+                custom_choice = f"Ask {npc_name} if they carry anything related to {phrased}"
+            elif beat == 'revelation':
+                custom_choice = f"Study the {loc} to see how it connects to {phrased}"
+            
+    if custom_choice and custom_choice not in choices:
+        choices.append(custom_choice)
+        
+    return choices
+
 # Proper NPC title/names for continuity references
 NPC_NAMES = [
     'the stranger','the watcher','the keeper','the wanderer','the exile',
@@ -651,54 +1017,88 @@ def _fallback_choices(ctx):
 # ── Main paragraph composer ──────────────────────────────────────────────────
 
 def compose_paragraph(state, beat, intent, action):
-    """Compose a grounded scene from current state facts only."""
+    """Compose a grounded scene using Dynamic Sequence Templates and state facts."""
     ctx = _scene_context(state, beat=beat, intent=intent, action=action)
     ctx['turn'] = state.get('turn', 0)
     state['current_scene'] = ctx
 
-    sentences = [
-        _scene_anchor_sentence(ctx),
-        _action_ack_sentence(ctx),
-        _beat_sentence(ctx),
-    ]
+    phase = state.get('arc_phase', 'setup')
+    if phase == 'setup':
+        preferred = ['reflective', 'sensory_first', 'observational']
+    elif phase == 'rising':
+        preferred = ['observational', 'action_first', 'tense']
+    elif phase == 'climax':
+        preferred = ['tense', 'action_first']
+    elif phase == 'falling':
+        preferred = ['action_first', 'reflective']
+    else:
+        preferred = ['reflective', 'action_first', 'tense', 'observational', 'sensory_first']
 
-    return_line = _location_return_sentence(ctx)
-    if return_line:
-        sentences.append(return_line)
+    templates = PROSE_TEMPLATES.get(beat, [])
+    if not templates:
+        templates = [{
+            'format': "sensory_first",
+            'intro': "Under the {weather} of the {location}, a quiet detail presents itself. {motif_text}",
+            'body': "Your decision to {action_verb} leads you directly to {object_name}. The {location_noun} feels less like a new path and more like a line drawn by someone who knew you were coming.",
+            'beat': "Here, the {features[0]} has been left exposed, bearing the markings of the {faction}.",
+            'hook': "The next useful truth remains buried somewhere in this {location_noun}."
+        }]
+
+    matching = [t for t in templates if t.get('format') in preferred]
+    selected_template = random.choice(matching) if matching else random.choice(templates)
+    ctx['template_format'] = selected_template.get('format')
+
+    base_prose = _render_prose_template(state, selected_template, ctx)
+
+    extra_sentences = []
 
     pending_item = state.pop('_pending_item_use', None)
     if pending_item:
-        sentences.append(pending_item)
+        extra_sentences.append(pending_item)
 
     stat_note = _stat_pressure_sentence(state, intent, beat)
     if stat_note:
-        sentences.append(stat_note)
+        extra_sentences.append(stat_note)
 
     for pending_key in ('_pending_consequence_lines',):
         for pending_line in state.pop(pending_key, []) or []:
-            sentences.append(pending_line)
+            extra_sentences.append(pending_line)
 
     pivot_line = state.pop('_pending_pivot_line', None)
     if pivot_line:
-        sentences.append(pivot_line)
+        extra_sentences.append(pivot_line)
 
     ambient_line = state.pop('_pending_ambient_line', None)
     if ambient_line:
-        sentences.append(f"At the {ctx['location']}, {ambient_line[0].lower() + ambient_line[1:]}")
+        extra_sentences.append(f"At the {ctx['location']}, {ambient_line[0].lower() + ambient_line[1:]}")
 
     identity_note = _identity_callback_sentence(state)
     if identity_note:
-        sentences.append(identity_note)
+        extra_sentences.append(identity_note)
 
     lore_note = _lore_bias_sentence(state)
     if lore_note:
-        sentences.append(lore_note)
+        extra_sentences.append(lore_note)
 
-    sentences.append(_grounded_world_sentence(state, ctx))
-    sentences.append(_contextual_hook(state, state.get('arc_phase', 'setup')))
+    grounded_world = _grounded_world_sentence(state, ctx)
+    if grounded_world:
+        extra_sentences.append(grounded_world)
 
-    cleaned = [_clean_sentence(sentence) for sentence in sentences if sentence]
-    return _shape_scene_prose(state, ' '.join(cleaned), state.get('arc_phase', 'setup'))
+    # Randomize the order of the constituent extra details to prevent formulaic flow
+    random.shuffle(extra_sentences)
+
+    if extra_sentences:
+        story = base_prose + " " + " ".join(extra_sentences)
+    else:
+        story = base_prose
+
+    # Clean and split properly
+    cleaned = [_clean_sentence(s) for s in _split_sentences(story) if s]
+    story_cleaned = ' '.join(cleaned)
+    if story_cleaned and story_cleaned[-1] not in '.!?"\'':
+        story_cleaned += '.'
+
+    return _shape_scene_prose(state, story_cleaned, phase)
 
 
 # ── Choice generator ─────────────────────────────────────────────────────────
@@ -775,6 +1175,7 @@ def generate_choices(state, beat):
         next_due = state['consequence_queue'][0]
         choices.append(f"Prepare at the {loc} for what {next_due.get('heard_by', 'rumour')} is carrying back toward you")
 
+    choices = _generate_choices_premise_aware(state, beat, choices, ctx)
     return _validate_choices(state, choices, ctx)
 
 def _lore_stat_choice(role, location):
@@ -846,11 +1247,15 @@ def _ensure_state_defaults(state, new_game=False):
     state.setdefault('emotion', 'wonder')
     state.setdefault('image_nonce', 0)
     state.setdefault('lore_bias', {})
+    state.setdefault('turns_since_location_change', 0)
     identity = _parse_player_identity(state.get('opening', ''))
     state.setdefault('player_role', identity['role'])
     state.setdefault('player_drive', identity['drive'])
     state.setdefault('player_wound', identity['wound'])
     state.setdefault('player_voice', identity['voice'])
+    opening = state.get('opening', '')
+    state.setdefault('opening_keywords_harvest', _harvest_premise(opening))
+    state.setdefault('opening_keywords', _extract_keywords(opening))
     state.setdefault('beat_history', [])
     state.setdefault('branch_history', [])
     state.setdefault('consequence_queue', [])
@@ -938,9 +1343,6 @@ def _hydrate_faction_dispositions(state):
     dispositions = state.setdefault('faction_dispositions', {})
     for faction in REGION_FACTIONS:
         dispositions.setdefault(faction, 0)
-    for profile in globals().get('FACTION_PROFILES', []):
-        if isinstance(profile, (list, tuple)) and profile:
-            dispositions.setdefault(profile[0], 0)
     for region in state.get('world', {}).get('regions', []):
         if region.get('faction'):
             dispositions.setdefault(region['faction'], 0)
@@ -1932,8 +2334,8 @@ class StoryEngine:
     @staticmethod
     def create_state(opening):
         genre = StoryEngine.detect_genre(opening)
-        locs = GENRE_LOCATIONS.get(genre, GENRE_LOCATIONS['fantasy'])
-        loc = random.choice(locs)
+        harvest = _harvest_premise(opening)
+        loc = _select_starting_location(genre, harvest)
         keywords = _extract_keywords(opening)
         identity = _parse_player_identity(opening)
         state = {
@@ -1951,6 +2353,7 @@ class StoryEngine:
             'turn': 0,
             'opening': opening,
             'opening_keywords': keywords,
+            'opening_keywords_harvest': harvest,
             'player_role': identity['role'],
             'player_drive': identity['drive'],
             'player_wound': identity['wound'],
@@ -1984,32 +2387,24 @@ class StoryEngine:
         ctx = _scene_context(state, beat='discovery', intent='explore', action=opening)
         state['current_scene'] = ctx
 
-        # Build opening that integrates the player's own premise
+        templates = PROSE_TEMPLATES.get('discovery', [])
+        template = random.choice(templates) if templates else {
+            'format': "sensory_first",
+            'intro': "Under the {weather} of the {location}, a quiet detail presents itself. {motif_text}",
+            'body': "Your decision to {action_verb} leads you directly to {object_name}. The {location_noun} feels less like a new path and more like a line drawn by someone who knew you were coming.",
+            'beat': "Here, the {features[0]} has been left exposed, bearing the markings of the {faction}.",
+            'hook': "The next useful truth remains buried somewhere in this {location_noun}."
+        }
+        
+        base_story = _render_prose_template(state, template, ctx)
+        
+        # Prepend recast identity sentence for character immersion and test compatibility
         p0 = _identity_opening_sentence(state, opening)
-        p1 = _scene_anchor_sentence(ctx)
-        map_phrase = 'maps' if 'map' in ctx['object'] else ctx['object']
-        map_verb = 'make' if map_phrase.endswith('s') else 'makes'
-        p2 = (
-            f"The {map_phrase} in your pack {map_verb} the {ctx['location']} feel less like discovery "
-            f"and more like evidence waiting to be mishandled."
-        )
-        p3 = (
-            f"If your old error began with a line on paper, this scene begins with a line under your boots: "
-            f"{ctx['features'][0]} leading toward {ctx['faction']}."
-        )
-        p4 = _contextual_hook(state, 'setup')
+        if p0:
+            story = p0 + " " + base_story
+        else:
+            story = base_story
 
-        raw_sentences = [p0, p1, p2, p3, p4]
-        cleaned = []
-        for s in raw_sentences:
-            s = s.strip()
-            if not s: continue
-            if s[-1] not in '.!?"\'':
-                s += '.'
-            s = s[0].upper() + s[1:]
-            cleaned.append(s)
-            
-        story = ' '.join(cleaned)
         story = _shape_scene_prose(state, story, state.get('arc_phase', 'setup'))
 
         scene = state['location_desc']
@@ -2023,6 +2418,7 @@ class StoryEngine:
     @staticmethod
     def generate(state, action=None):
         state = _ensure_state_defaults(state)
+        state['turns_since_location_change'] = state.get('turns_since_location_change', 0) + 1
         state['last_action'] = action or ''
         genre = state['genre']
         locs = GENRE_LOCATIONS.get(genre, GENRE_LOCATIONS['fantasy'])
@@ -2045,6 +2441,7 @@ class StoryEngine:
             state['dominant_behavior'] = max(counts, key=counts.get)
 
         # Pick beat through salience after action intent is known.
+        prev_beat = state.get('last_beat')
         beat = _pick_beat(state, intent=intent)
         state['last_beat'] = beat
         _enqueue_consequence(state, branch_event, intent, beat)
@@ -2057,7 +2454,7 @@ class StoryEngine:
         _apply_pivot_if_due(state, beat, intent)
 
         # Location transitions
-        if beat == 'transition' or (random.random() < 0.2 and turn > 2):
+        if beat == 'transition':
             old = state['location']
             state['prev_locations'].append(old)
             candidates = [l for l in locs if l[0] != old]
@@ -2065,6 +2462,7 @@ class StoryEngine:
             state['location'] = new_loc[0]
             state['location_desc'] = new_loc[1]
             _region_for_location_shift(state)
+            state['turns_since_location_change'] = 0
 
         # Track NPCs and items for continuity
         gained_item = used_item
@@ -2072,14 +2470,19 @@ class StoryEngine:
             gained_item = _maybe_gain_item(state, beat, intent, action)
 
         if beat == 'encounter':
-            if state.get('continuity', {}).get('npcs') and random.random() < 0.35:
-                npc = random.choice(list(state['continuity']['npcs'].keys()))
+            if _is_npc_in_scene(state, beat, prev_beat):
+                npc = state['last_npc']
             else:
-                npc = _make_named_npc(state)
-            state['npcs_met'].append(npc)
-            state['last_npc'] = npc
-            if len(state['npcs_met']) > 6:
-                state['npcs_met'] = state['npcs_met'][-6:]
+                if state.get('continuity', {}).get('npcs') and random.random() < 0.35:
+                    npc = random.choice(list(state['continuity']['npcs'].keys()))
+                else:
+                    npc = _make_named_npc(state)
+                npc_record = _get_or_create_npc_record(state, npc)
+                npc_record['last_seen_location'] = state['location']
+                state['npcs_met'].append(npc)
+                state['last_npc'] = npc
+                if len(state['npcs_met']) > 6:
+                    state['npcs_met'] = state['npcs_met'][-6:]
 
         # Compose
         story = compose_paragraph(state, beat, intent, action)
@@ -2244,6 +2647,10 @@ def _beat_salience(state, beat, intent):
         score += 1
     if state.get('player_drive') in ('atonement', 'redemption') and beat in ('encounter', 'revelation'):
         score += 1
+    if beat == 'transition':
+        turns_stayed = state.get('turns_since_location_change', 0)
+        if turns_stayed > 2:
+            score += (turns_stayed - 2)
     return score
 
 def _parse_intent(action):

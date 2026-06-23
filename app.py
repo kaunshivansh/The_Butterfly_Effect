@@ -2,7 +2,7 @@
 The Butterfly Effect — Flask backend.
 Procedural story generation, save management, image serving.
 """
-import json, re, uuid, hashlib, random, urllib.request
+import json, re, uuid, hashlib, random, urllib.request, threading
 from datetime import datetime, timezone
 from pathlib import Path
 import os
@@ -11,12 +11,34 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 from story_engine import StoryEngine
 from lore_manager import LoreManager
 
+def _is_safe_id(save_id):
+    """Validate that save_id is a valid UUIDv4 to prevent path traversal."""
+    if not isinstance(save_id, str):
+        return False
+    return bool(re.match(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$', save_id))
+
+
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'butterfly')
+
+# Session cookie security hardening
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV', 'production') != 'development'
+)
+
+# Warn if development secrets or default password are used in production
+if os.environ.get('FLASK_ENV', 'production') != 'development':
+    if not os.environ.get('SECRET_KEY') or os.environ.get('SECRET_KEY') == 'dev-secret-key-replace-me-in-production':
+        print("[WARNING] SECRET_KEY is not configured or using default in production!")
+    if ADMIN_PASSWORD == 'butterfly':
+        print("[WARNING] ADMIN_PASSWORD is using the default value 'butterfly' in production!")
+
 
 # Vercel serverless environment is read-only except for /tmp
 if os.environ.get('VERCEL') == '1':
@@ -91,28 +113,68 @@ def game():
 def serve_image(filename):
     return send_from_directory(IMAGES_DIR, filename)
 
-@app.route('/api/checkpoints')
-def api_checkpoints():
-    """Return all checkpoints from all saves (for home screen butterflies)."""
+# In-memory checkpoints cache
+_checkpoints_cache = None
+
+def _update_checkpoints_cache(data):
+    """Incrementally update the checkpoints cache when a save is written."""
+    global _checkpoints_cache
+    if _checkpoints_cache is None:
+        return
+    save_id = data.get('id')
+    save_title = data.get('title', 'Unknown Adventure')
+    # Filter out old checkpoints from this save
+    _checkpoints_cache = [cp for cp in _checkpoints_cache if cp.get('save_id') != save_id]
+    # Add the current checkpoints
+    for cp in data.get('checkpoints', []):
+        if cp.get('id') and cp.get('description'):
+            _checkpoints_cache.append({
+                'id':          cp['id'],
+                'type':        cp.get('type', 'achievement'),
+                'description': cp['description'],
+                'turn':        cp.get('turn', 0),
+                'timestamp':   cp.get('timestamp', ''),
+                'save_id':     save_id,
+                'save_title':  save_title,
+            })
+
+def _get_checkpoints():
+    """Load and return checkpoints, caching the result in memory."""
+    global _checkpoints_cache
+    if _checkpoints_cache is not None:
+        return _checkpoints_cache
+
     out = []
     for f in SAVES_DIR.glob('*.json'):
         try:
+            # Skip invalid save filenames (validate they look like UUIDs)
+            if not _is_safe_id(f.stem):
+                continue
             data = json.loads(f.read_text())
+            save_id = data.get('id', '')
+            save_title = data.get('title', 'Unknown Adventure')
             for cp in data.get('checkpoints', []):
                 if not cp.get('id') or not cp.get('description'):
                     continue
                 out.append({
-                    'id':         cp['id'],
-                    'type':       cp.get('type', 'achievement'),
-                    'description':cp['description'],
-                    'turn':       cp.get('turn', 0),
-                    'timestamp':  cp.get('timestamp', ''),
-                    'save_id':    data.get('id', ''),
-                    'save_title': data.get('title', 'Unknown Adventure'),
+                    'id':          cp['id'],
+                    'type':        cp.get('type', 'achievement'),
+                    'description': cp['description'],
+                    'turn':        cp.get('turn', 0),
+                    'timestamp':   cp.get('timestamp', ''),
+                    'save_id':     save_id,
+                    'save_title':  save_title,
                 })
         except Exception:
             pass
-    return jsonify(out)
+    _checkpoints_cache = out
+    return _checkpoints_cache
+
+@app.route('/api/checkpoints')
+def api_checkpoints():
+    """Return all checkpoints from all saves (for home screen butterflies)."""
+    return jsonify(_get_checkpoints())
+
 
 @app.route('/api/image-search')
 def api_image_search():
@@ -121,6 +183,15 @@ def api_image_search():
     if not q:
         return jsonify({'url': None})
     return jsonify(_image_payload(q))
+
+
+def _download_image_async(url, filepath):
+    """Start background thread to download image, avoiding blocking the main thread."""
+    def run():
+        if _download_image(url, filepath):
+            global _image_cache_mtime
+            _image_cache_mtime = 0
+    threading.Thread(target=run, daemon=True).start()
 
 
 def _image_payload(q):
@@ -137,22 +208,12 @@ def _image_payload(q):
     if app.config.get('TESTING'):
         return {'url': None, 'query': q, 'caption': q}
 
-    # Try downloading from Picsum (aesthetic random backgrounds based on seed)
+    # Serve the Picsum URL directly, and start a background download to cache it
     seed = hashlib.md5(q.encode()).hexdigest()
     source_url = f'https://picsum.photos/seed/{seed}/800/600'
-    if _download_image(source_url, fpath):
-        # Invalidate cache so new file is picked up
-        global _image_cache_mtime
-        _image_cache_mtime = 0
-        return {'url': f'/game_images/{fname}', 'query': q, 'caption': q}
+    _download_image_async(source_url, fpath)
+    return {'url': source_url, 'query': q, 'caption': q}
 
-    # Fallback: return a random cached image if any exist
-    cached = _get_cached_images()
-    if cached:
-        return {'url': f'/game_images/{random.choice(cached)}', 'query': q, 'caption': q}
-
-    # Nothing available — frontend will show atmospheric placeholder
-    return {'url': None, 'query': q, 'caption': q}
 
 
 @app.route('/admin', methods=['GET', 'POST'])
@@ -368,8 +429,12 @@ def api_time_jump():
     body = request.json or {}
     save_id = body.get('save_id')
     direction = body.get('direction', 'back')
-    turns = body.get('turns', 1)
+    try:
+        turns = int(body.get('turns', 1))
+    except (ValueError, TypeError):
+        turns = 1
     save = _read(save_id)
+
     if not save:
         return jsonify({'error': 'Save not found'}), 404
 
@@ -587,7 +652,8 @@ def _make_cp(cp_data, turn):
     }
 
 def _read(save_id):
-    if not save_id: return None
+    if not _is_safe_id(save_id):
+        return None
     try:
         f = SAVES_DIR / f"{save_id}.json"
         if not f.exists(): return None
@@ -597,16 +663,22 @@ def _read(save_id):
         return None
 
 def _write(data):
+    if not data or not _is_safe_id(data.get('id')):
+        return
     try:
         data['updated_at'] = _now()
         path = SAVES_DIR / f"{data['id']}.json"
         tmp = path.with_suffix('.tmp')
         tmp.write_text(json.dumps(data, separators=(',', ':')))
         tmp.replace(path)
+        _update_checkpoints_cache(data)
     except Exception as e:
         print(f'[_write] {e}')
-        try: (SAVES_DIR / f"{data['id']}.json").write_text(json.dumps(data, separators=(',', ':')))
+        try:
+            if _is_safe_id(data.get('id')):
+                (SAVES_DIR / f"{data['id']}.json").write_text(json.dumps(data, separators=(',', ':')))
         except Exception: pass
+
 
 def _now():
     return datetime.now(timezone.utc).isoformat()

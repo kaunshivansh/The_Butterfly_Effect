@@ -67,7 +67,7 @@
       font-family:'Courier New',monospace;font-size:clamp(20px,4.5vw,42px);
       font-weight:bold;letter-spacing:.28em;
       color:#111;white-space:nowrap;text-transform:uppercase;
-      position:relative;display:flex;gap:0
+      position:relative;display:flex;gap:0;margin:0
     }
     .title-letter{
       display:inline-block;opacity:0;
@@ -194,12 +194,12 @@
 <div id="end-overlay"></div>
 <div id="end-ui">
   <div id="title-block">
-    <div id="end-title" data-text="The Butterfly Effect"></div>
+    <h1 id="end-title" data-text="The Butterfly Effect"></h1>
     <div id="title-line"></div>
     <div id="end-subtitle">every choice echoes</div>
   </div>
   <div id="entry-wrap">
-    <input id="entry-input" type="text" placeholder="Enter your beginnings…" autocomplete="off" spellcheck="false"/>
+    <input id="entry-input" type="text" placeholder="Enter your beginnings…" autocomplete="off" spellcheck="false" aria-label="Story opening premise"/>
     <button id="entry-submit">BEGIN →</button>
     <div id="entry-loading">weaving your world…</div>
   </div>

@@ -20,7 +20,7 @@
     /* ── Layout ── */
     #root{display:grid;height:100vh;grid-template-rows:48px 1fr 70px;grid-template-columns:1fr}
     #header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);background:rgba(8,8,8,.95);backdrop-filter:blur(8px);z-index:10}
-    #header-title{font-size:13px;letter-spacing:.22em;text-transform:uppercase;font-weight:bold;text-decoration:underline;color:#ccc}
+    #header-title{font-size:13px;letter-spacing:.22em;text-transform:uppercase;font-weight:bold;text-decoration:underline;color:#ccc;margin:0}
     #header-btns{display:flex;gap:10px}
     .hbtn{background:none;border:1px solid var(--border);color:var(--dim);font-family:var(--font);font-size:10px;letter-spacing:.14em;padding:5px 14px;cursor:pointer;transition:all .2s}
     .hbtn:hover{border-color:#555;color:#eee}
@@ -303,7 +303,7 @@
 
 <div id="root">
   <header id="header">
-    <div id="header-title">The Butterfly Effect</div>
+    <h1 id="header-title">The Butterfly Effect</h1>
     <div id="header-btns">
       <div id="turn-label" style="font-size:10px;color:var(--dim);letter-spacing:.14em;align-self:center;margin-right:6px"></div>
       <button class="hbtn" id="inventory-btn">[INVENTORY]</button>
@@ -334,7 +334,7 @@
   </div>
 
   <footer id="footer">
-    <input id="action-input" type="text" placeholder="or type your own action…" autocomplete="off" spellcheck="false"/>
+    <input id="action-input" type="text" placeholder="or type your own action…" autocomplete="off" spellcheck="false" aria-label="Type your action"/>
     <button id="send-btn">SEND</button>
   </footer>
 </div>
@@ -910,14 +910,19 @@ function renderTB(){
     tbWingPhase += 0.08;
     // use a purple color
     drawCPButterfly(30, 30, tbWingPhase, '#9b7eff', 0.8);
+    tbAnimFrame = requestAnimationFrame(renderTB);
+  } else {
+    tbAnimFrame = null;
   }
-  tbAnimFrame = requestAnimationFrame(renderTB);
 }
-renderTB(); // start loop
 
 function maybeShowTimeButterfly(){
   // Hide any current butterfly
   tbEl.classList.remove('visible');
+  if(tbAnimFrame){
+    cancelAnimationFrame(tbAnimFrame);
+    tbAnimFrame = null;
+  }
   if(tbTimeout) clearTimeout(tbTimeout);
 
   if(currentTurn === 2){
@@ -949,10 +954,17 @@ function scheduleButterfly(){
     tbEl.style.animation = null;
     
     tbEl.classList.add('visible');
+    if(!tbAnimFrame){
+      tbAnimFrame = requestAnimationFrame(renderTB);
+    }
 
     // Auto-hide after 14s (length of the CSS path animation)
     tbTimeout = setTimeout(()=>{
       tbEl.classList.remove('visible');
+      if(tbAnimFrame){
+        cancelAnimationFrame(tbAnimFrame);
+        tbAnimFrame = null;
+      }
       tbData = null;
     }, 14000);
   }, 3000);
@@ -961,6 +973,10 @@ function scheduleButterfly(){
 tbEl.addEventListener('click', async ()=>{
   if(!tbData || isLoading) return;
   tbEl.classList.remove('visible');
+  if(tbAnimFrame){
+    cancelAnimationFrame(tbAnimFrame);
+    tbAnimFrame = null;
+  }
   setLoading(true);
 
   try{
