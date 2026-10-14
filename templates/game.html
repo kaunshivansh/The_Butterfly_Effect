@@ -79,6 +79,8 @@
       color:rgba(255,255,255,.45);font-family:var(--font);font-size:9px;letter-spacing:.12em;
       padding:4px 8px;cursor:pointer;border-radius:2px;backdrop-filter:blur(4px)
     }
+    /* Narrative remains text-only; the scene panel keeps the original atmosphere. */
+    #regen-img-btn{display:none}
     #regen-img-btn:hover{color:#ddd;border-color:rgba(155,126,255,.45)}
     /* Vignette overlay on the image */
     #img-panel::after{
@@ -275,6 +277,7 @@
       left:0;top:0;width:60px;height:60px;
       display:flex;justify-content:center;align-items:center;
     }
+    #time-butterfly{display:none!important}
     #time-butterfly.visible{
       opacity:1;pointer-events:all;
       animation: tbPathFlight 14s ease-in-out forwards;
@@ -378,7 +381,9 @@
 // ── Init ──────────────────────────────────────────────────────────────────────
 const params   = new URLSearchParams(location.search);
 const saveId   = params.get('save_id');
+const saveKey  = params.get('key');
 if(!saveId){ location.href='/'; }
+const saveHeaders = () => saveKey ? {'X-Save-Key':saveKey} : {};
 
 const storyScroll = document.getElementById('story-scroll');
 const choicesWrap = document.getElementById('choices-wrap');
@@ -411,7 +416,7 @@ let lastImageQuery = '';
 async function init(){
   setLoading(true);
   try{
-    const r    = await fetch(`/api/game/${saveId}`);
+    const r    = await fetch(`/api/game/${encodeURIComponent(saveId)}`,{headers:saveHeaders()});
     const data = await r.json();
     if(data.error){ showErr(data.error); return; }
 
@@ -424,27 +429,21 @@ async function init(){
     let lastScene = null;
     for(let i=0;i<hist.length;i++){
       const msg=hist[i];
-      if(msg.role==='user' && i>0){
+      if(msg.role==='player' && i>0){
         addPlayerEntry(msg.content);
-      } else if(msg.role==='assistant'){
-        const parsed = parseResponse(msg.content);
-        addStoryEntry(parsed.story, false);
-        if(parsed.scene) lastScene = parsed.scene;
+      } else if(msg.role==='narrator'){
+        addStoryEntry(msg.story, false);
+        if(msg.scene) lastScene = msg.scene;
       }
     }
 
     // Show image for last scene
-    if(data.image_query) fetchAndShowImage(data.image_query, data.image_caption || data.image_query);
-    else if(lastScene) fetchAndShowImage(lastScene);
-    else if(data.last_image_path) setImage(data.last_image_path);
+    if(lastScene) showPlaceholder(lastScene);
 
     // Show choices from the last assistant message
     if(hist.length>0){
-      const lastAssistant = hist.filter(m=>m.role==='assistant').pop();
-      if(lastAssistant){
-        const parsed = parseResponse(lastAssistant.content);
-        if(parsed.choices && parsed.choices.length>0) renderChoices(parsed.choices);
-      }
+      const lastNarrator = hist.filter(m=>m.role==='narrator').pop();
+      if(lastNarrator && lastNarrator.choices) renderChoices(lastNarrator.choices);
     }
 
     scrollBottom();
@@ -479,7 +478,7 @@ async function sendAction(actionOverride){
       }
       const r=await fetch('/api/game/action',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:{'Content-Type':'application/json',...saveHeaders()},
         body:JSON.stringify({save_id:saveId, action}),
       });
       const data=await r.json();
@@ -500,8 +499,7 @@ async function sendAction(actionOverride){
       addStoryEntry(data.story || 'The story continues...', true);
 
       // Fetch image from search
-      if(data.image_query) fetchAndShowImage(data.image_query, data.image_caption || data.image_query);
-      else if(data.scene) fetchAndShowImage(data.scene);
+      if(data.scene) showPlaceholder(data.scene);
 
       // Show clickable choices
       if(data.choices && data.choices.length>0) renderChoices(data.choices);
@@ -509,8 +507,6 @@ async function sendAction(actionOverride){
       if(data.checkpoint) handleCheckpoint(data.checkpoint);
 
       // Check if time-butterfly should appear
-      maybeShowTimeButterfly();
-
       scrollBottom();
       actionInput.focus();
       setLoading(false);
@@ -535,24 +531,7 @@ async function fetchAndShowImage(sceneQuery, captionText){
   updateSceneDesc(captionText || sceneQuery);
 
   try{
-    const r = await fetch(`/api/image-search?q=${encodeURIComponent(sceneQuery)}`);
-    const data = await r.json();
-    if(data.caption || data.query) updateSceneDesc(data.caption || data.query);
-    if(data.url){
-      const img = new Image();
-      img.onload = ()=>{
-        sceneImg.src = data.url;
-        sceneImg.style.display='block';
-        sceneImg.offsetHeight;
-        sceneImg.classList.add('loaded');
-        scenePlaceholder.style.display='none';
-        sceneLoading.style.display='none';
-      };
-      img.onerror = ()=>{ showPlaceholder(sceneQuery); };
-      img.src = data.url;
-    } else {
-      showPlaceholder(sceneQuery);
-    }
+    showPlaceholder(sceneQuery);
   }catch(e){
     showPlaceholder(sceneQuery);
   }
@@ -584,10 +563,18 @@ function clearChoices(){
 
 // ── Text panels ──────────────────────────────────────────────────────────────
 function updatePanels(panels){
+  const character = panels.character;
+  const characterText = typeof character==='object'
+    ? `You are ${character.name||'an unnamed traveller'}, a ${character.role||'wanderer'}.`
+    : character;
+  const inventory = Array.isArray(panels.inventory) ? panels.inventory.join('\n') : panels.inventory;
+  const journal = panels.objective
+    ? `${panels.objective}\n\nRegion: ${panels.region||'the road'} · Standing: ${panels.reputation||'unknown'}${panels.threads?.length?'\n\nThreads: '+panels.threads.join('\n'):''}`
+    : panels.journal;
   panelText = {
-    inventory: panels.inventory || panelText.inventory || 'Your pack is quiet.',
-    journal: panels.journal || panelText.journal || 'The road has not yet written itself down.',
-    character: panels.character || panelText.character || 'You are still becoming legible.',
+    inventory: inventory || panelText.inventory || 'Your pack is quiet.',
+    journal: journal || panelText.journal || 'The road has not yet written itself down.',
+    character: characterText || panelText.character || 'You are still becoming legible.',
   };
   if(textDrawer.classList.contains('open')){
     const active = textDrawer.dataset.panel;
@@ -680,7 +667,7 @@ async function regenerateImage(){
   try{
     const r=await fetch('/api/image-regenerate',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json',...saveHeaders()},
       body:JSON.stringify({save_id:saveId}),
     });
     const data=await r.json();
@@ -825,7 +812,7 @@ document.getElementById('save-btn').addEventListener('click',async()=>{
   try{
     const r=await fetch('/api/game/save-checkpoint',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json',...saveHeaders()},
       body:JSON.stringify({save_id:saveId}),
     });
     const data=await r.json();

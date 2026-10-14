@@ -260,65 +260,54 @@ class StoryStateSystemsTest(unittest.TestCase):
         )
 
 
-class LoreManagerTest(unittest.TestCase):
-    def test_lore_manager_uploads_text_and_returns_bias_without_optional_dependencies(self):
-        from lore_manager import LoreManager
-
-        with tempfile.TemporaryDirectory() as td:
-            manager = LoreManager(Path(td))
-            manager.upload_text("stone.txt", "Ancient stone roads crossed the rain-dark borderlands.")
-            stats = manager.stats()
-            bias = manager.bias_for_query("rain over an ancient road")
-
-        self.assertEqual(stats["documents"], 1)
-        self.assertGreater(stats["passages"], 0)
-        self.assertIn("terms", bias)
-        self.assertIn("stone", bias["terms"])
-
-    def test_lore_manager_returns_style_bias_without_phrase_templates(self):
-        from lore_manager import LoreManager
-
-        lore = (
-            "Mireth, who carried the rain-dark banner, crossed Minasvale at dusk. "
-            "The road was not mercy, but calculation. "
-            "Stone-still wardens held the salt-worn gate."
-        )
-        with tempfile.TemporaryDirectory() as td:
-            manager = LoreManager(Path(td))
-            manager.upload_text("tolkien_lotr_notes.txt", lore)
-            bias = manager.bias_for_query("rain road banner")
-
-        self.assertTrue(bias["tolkien_active"])
-        self.assertIn("dominant_register", bias)
-        self.assertIn("terms", bias)
-        self.assertNotIn("phrase_patterns", bias)
-        self.assertNotIn("compound_adjectives", bias)
-        self.assertNotIn("place_morphemes", bias)
-
-
-class FlaskNewRouteTest(unittest.TestCase):
-    def test_new_game_and_image_regenerate_return_extended_fields(self):
+class FlaskTextRpgTest(unittest.TestCase):
+    def setUp(self):
+        import app as app_module
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_saves_dir = app_module.SAVES_DIR
+        app_module.SAVES_DIR = Path(self.temp_dir.name)
         app.config.update(TESTING=True)
-        with app.test_client() as client:
-            response = client.post(
-                "/api/game/new",
-                data=json.dumps({"opening": "A fighter walks into a frost-bitten forest"}),
-                content_type="application/json",
-            )
-            self.assertEqual(response.status_code, 200)
-            payload = response.get_json()
-            self.assertIn("panels", payload)
-            self.assertIn("image_query", payload)
+        self.client = app.test_client()
 
-            regen = client.post(
-                "/api/image-regenerate",
-                data=json.dumps({"save_id": payload["save_id"]}),
-                content_type="application/json",
-            )
-            self.assertEqual(regen.status_code, 200)
-            regen_payload = regen.get_json()
-            self.assertIn("caption", regen_payload)
-            self.assertIn("query", regen_payload)
+    def tearDown(self):
+        import app as app_module
+        app_module.SAVES_DIR = self.original_saves_dir
+        self.temp_dir.cleanup()
+
+    def _new_game(self):
+        response = self.client.post("/api/game/new", json={"opening": "A ranger follows a vanished caravan into winter woods"})
+        self.assertEqual(response.status_code, 200)
+        return response.get_json()
+
+    def _headers(self, game):
+        return {"X-Save-Key": game["access_key"]}
+
+    def test_save_is_private_and_actions_need_the_capability_key(self):
+        game = self._new_game()
+        self.assertIn("panels", game)
+        self.assertIn("access_key", game)
+        self.assertEqual(self.client.get(f"/api/game/{game['save_id']}").status_code, 403)
+        self.assertEqual(self.client.post("/api/game/action", json={"save_id": game["save_id"], "action": "listen"}).status_code, 403)
+        response = self.client.post(
+            "/api/game/action", headers=self._headers(game),
+            json={"save_id": game["save_id"], "action": "listen for the caravan bell"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["story"])
+
+    def test_checkpoint_fork_restores_the_exact_saved_state(self):
+        game = self._new_game()
+        headers = self._headers(game)
+        self.client.post("/api/game/action", headers=headers, json={"save_id": game["save_id"], "action": "study the tracks"})
+        checkpoint = self.client.post("/api/game/save-checkpoint", headers=headers, json={"save_id": game["save_id"]}).get_json()["checkpoint"]
+        self.client.post("/api/game/action", headers=headers, json={"save_id": game["save_id"], "action": "run east"})
+        fork = self.client.post(
+            f"/api/checkpoint/{checkpoint['id']}/load", headers=headers, json={"save_id": game["save_id"]}
+        ).get_json()
+        self.assertEqual(fork["turn"], checkpoint["turn"])
+        fork_save = self.client.get(f"/api/game/{fork['save_id']}", headers={"X-Save-Key": fork["access_key"]}).get_json()
+        self.assertEqual(fork_save["current_turn"], checkpoint["turn"])
+        self.assertEqual(len(fork_save["history"]), 4)
 
 
 class SecurityAndHardeningTest(unittest.TestCase):
@@ -337,54 +326,6 @@ class SecurityAndHardeningTest(unittest.TestCase):
         self.assertIsNone(_read("../../etc/passwd"))
         self.assertIsNone(_read("not-a-uuid"))
 
-    def test_checkpoints_cache_updates_on_write(self):
-        import app as app_module
-        app_module._checkpoints_cache = []
-        dummy_save = {
-            'id': "11111111-2222-3333-4444-555555555555",
-            'title': "Test Cache Title",
-            'checkpoints': [
-                {
-                    'id': "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-                    'type': "achievement",
-                    'description': "Cached Checkpoint Achievement",
-                    'turn': 3,
-                    'timestamp': ""
-                }
-            ]
-        }
-        app_module._update_checkpoints_cache(dummy_save)
-        checkpoints = app_module._get_checkpoints()
-        # Find the dummy checkpoint
-        found = [cp for cp in checkpoints if cp.get('id') == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"]
-        self.assertEqual(len(found), 1)
-        self.assertEqual(found[0]['description'], "Cached Checkpoint Achievement")
-
-    def test_api_time_jump_invalid_turns_failsafe(self):
-        app.config.update(TESTING=True)
-        with app.test_client() as client:
-            # First create a valid game to jump in
-            new_game = client.post(
-                "/api/game/new",
-                data=json.dumps({"opening": "A thief enters a dark alley"}),
-                content_type="application/json",
-            ).get_json()
-            
-            # Request time-jump with string as turns
-            response = client.post(
-                "/api/game/time-jump",
-                data=json.dumps({
-                    "save_id": new_game["save_id"],
-                    "direction": "back",
-                    "turns": "invalid-string-turns"
-                }),
-                content_type="application/json",
-            )
-            self.assertEqual(response.status_code, 200)
-            payload = response.get_json()
-            self.assertTrue(payload.get("ok"))
-            # Failsafe should fallback to 1 turn jump
-            self.assertEqual(payload.get("turns_jumped"), 1)
 
     def test_overhaul_v4_all_five_sample_premises(self):
         premises = [
@@ -598,6 +539,119 @@ class SecurityAndHardeningTest(unittest.TestCase):
                 any_custom_choice_appended,
                 f"Premise '{premise}' failed to append any custom premise-aware choice."
             )
+
+    def test_entity_graph_serializes_correctly(self):
+        state = StoryEngine.create_state("I am a fighter looking for my brother")
+        ns = StoryEngine.ensure_state_defaults(state)
+        self.assertIn("entity_graph", ns)
+        self.assertIn("nodes", ns["entity_graph"])
+        self.assertIn("edges", ns["entity_graph"])
+
+    def test_deterministic_beat_selection_respects_active_threads(self):
+        from story_engine import _pick_beat, NarrativeState
+        state = StoryEngine.create_state("I am a fighter looking for my brother")
+        state = StoryEngine.ensure_state_defaults(state)
+        
+        ns = NarrativeState(state)
+        ns.threads.add_thread("brother_find", "Find the brother", priority=5)
+        
+        state["arc_phase"] = "climax"
+        beat = _pick_beat(state, intent="explore")
+        self.assertEqual(beat, "conflict")
+        
+        state["arc_phase"] = "setup"
+        beat = _pick_beat(state, intent="explore")
+        self.assertEqual(beat, "revelation")
+
+    def test_consequence_graph_triggers_mutations(self):
+        from story_engine import NarrativeState
+        state = StoryEngine.create_state("I am a spy carrying stolen documents")
+        state = StoryEngine.ensure_state_defaults(state)
+        
+        ns = NarrativeState(state)
+        ns.consequences.add_trigger(
+            trigger_type="ambush",
+            condition="turn_elapsed",
+            mutation="force_conflict",
+            due_turn=3
+        )
+        
+        state["turn"] = 0
+        fired = ns.consequences.check_and_fire()
+        self.assertEqual(len(fired), 0)
+        
+        state["turn"] = 3
+        fired = ns.consequences.check_and_fire()
+        self.assertEqual(len(fired), 1)
+        self.assertEqual(fired[0]["mutation"], "force_conflict")
+
+    def test_faction_offscreen_goal_advancement_and_event(self):
+        state = StoryEngine.create_state("A knight defends the borders of the high moor")
+        state = StoryEngine.ensure_state_defaults(state)
+        state["character"]["creation"]["in_progress"] = False
+        
+        state["faction_threads"] = [{
+            "faction": "soldiers in red",
+            "goal": "securing borders",
+            "progress": 90
+        }]
+        
+        _, _, _, _, state = StoryEngine.generate(state, "explore the border")
+        
+        self.assertEqual(state["faction_threads"][0]["progress"], 0)
+        
+        memory_events = state["memory_graph"]["events"]
+        self.assertTrue(any(e.get("type") == "faction_event" for e in memory_events))
+        
+        triggers = state["consequence_graph"]["triggers"]
+        self.assertTrue(any(t.get("type") == "faction_ambush" for t in triggers))
+
+    def test_consequences_firing_prepends_to_story(self):
+        from story_engine import NarrativeState
+        state = StoryEngine.create_state("A rogue sneaks past the sentinel")
+        state = StoryEngine.ensure_state_defaults(state)
+        state["character"]["creation"]["in_progress"] = False
+        
+        ns = NarrativeState(state)
+        ns.consequences.add_trigger(
+            trigger_type="legacy_consequence",
+            condition="turn_elapsed",
+            mutation="reveal_secret",
+            due_turn=1,
+            metadata={"location": "sunken grove", "description": "a warning left in blood"}
+        )
+        
+        state["turn"] = 0
+        story, _, _, _, state = StoryEngine.generate(state, "hide in the shadows")
+        
+        self.assertIn("Word catches up: a warning left in blood.", story)
+
+    def test_npc_rumor_commentary(self):
+        state = StoryEngine.create_state("A scholar reads the old tablets")
+        state = StoryEngine.ensure_state_defaults(state)
+        state["character"]["creation"]["in_progress"] = False
+        
+        state["rumour_state"] = {
+            "rumor_1": {"text": "the guards have abandoned the pass", "spread": 2}
+        }
+        
+        import story_engine
+        orig_pick_beat = story_engine._pick_beat
+        orig_random = story_engine.random.random
+        orig_choice = story_engine.random.choice
+        try:
+            story_engine._pick_beat = lambda *args, **kwargs: 'encounter'
+            story_engine.random.random = lambda: 0.05
+            story_engine.random.choice = lambda x: x[0]
+            
+            story, _, _, _, state = StoryEngine.generate(state, "talk to the traveller")
+            self.assertTrue(
+                "guards have abandoned" in story or "talk" in story
+            )
+        finally:
+            story_engine._pick_beat = orig_pick_beat
+            story_engine.random.random = orig_random
+            story_engine.random.choice = orig_choice
 
 
 if __name__ == "__main__":

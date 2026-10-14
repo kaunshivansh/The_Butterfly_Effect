@@ -555,7 +555,7 @@ async function submitBeginning(){
         entrySub.style.display='block';
         return;
       }
-      window.location.href=`/game?save_id=${data.save_id}`;
+      window.location.href=`/game?save_id=${encodeURIComponent(data.save_id)}&key=${encodeURIComponent(data.access_key)}`;
       return;
     }catch(e){
       if(attempt < MAX_RETRIES) continue;

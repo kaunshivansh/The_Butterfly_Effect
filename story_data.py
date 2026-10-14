@@ -37,6 +37,14 @@ NPC_TICS = [
     "they move their jaw around a name they will not say",
     "they tap a route-map rhythm against their sleeve",
     "they breathe through pain and pretend it is patience",
+    "they keep their fingers poised above their coin purse",
+    "they trace a circle in the dust each time you mention the Glass Abbey",
+    "they clear their throat before pronouncing any proper nouns",
+    "they shift their stance to conceal the faded emblem on their chest",
+    "they glance upward at the sky as if estimating how much time remains",
+    "they look at your boots, measuring the miles you have walked",
+    "they adjust the collar of their heavy cloak, hiding a scar",
+    "they blink slowly, like an owl adapting to a sudden light",
 ]
 
 NPC_ARCHETYPES = [
@@ -67,6 +75,14 @@ NPC_SECRETS = [
     "they owe protection to someone who wants you delayed",
     "they remember your role from a version of the story you deny",
     "they buried a key under a milestone and no longer know why",
+    "they are a spy posing as a simple pilgrim to track the red-cloaked soldiers",
+    "they poisoned the well at the crossroad to halt the faction's advance",
+    "they carry the signet ring of a deceased high officer in their shoe",
+    "they know the secret password that opens the gates of the iron fort",
+    "they witnessed the murder of the cartographer but kept silent to save their sister",
+    "they are the one who sent the anonymous message warning you",
+    "they stole the map you are using from the archives of the Toll Guild",
+    "they have a price on their head in three separate provinces",
 ]
 
 NPC_WANTS = [
@@ -80,6 +96,14 @@ NPC_WANTS = [
     "to have their betrayal understood as necessity",
     "to test whether you are the kind of person rumours claim",
     "to move a hidden witness from one danger into another",
+    "to find a guide who can lead them safely through the whispering woods",
+    "to destroy the letter they are carrying before it falls into the wrong hands",
+    "to negotiate a truce between the local villagers and the guards",
+    "to steal your journal while you sleep to copy the routes you have mapped",
+    "to locate the grave of their mentor to pay a final debt",
+    "to get a warm meal and a dry place to rest before the scouts return",
+    "to exchange their heavy broadsword for a fast horse",
+    "to convince you that their faction is the lesser of the two evils",
 ]
 
 NPC_LOYALTIES = [

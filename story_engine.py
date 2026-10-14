@@ -8,6 +8,278 @@ or ornamental prose.
 import random, re
 from story_data import *
 
+# ── Narrative Architecture Classes ───────────────────────────────────────────
+
+class EntityGraph:
+    """Manages relationships, secrets, and debts between NPCs, Factions, and the Player."""
+    def __init__(self, state):
+        self.state = state
+        self.graph = state.setdefault('entity_graph', {'nodes': {}, 'edges': []})
+        
+    def add_node(self, node_id, node_type, properties=None):
+        if node_id not in self.graph['nodes']:
+            self.graph['nodes'][node_id] = {'type': node_type, 'properties': properties or {}}
+            
+    def add_edge(self, source, target, edge_type, weight=1, metadata=None):
+        edge = {'source': source, 'target': target, 'type': edge_type, 'weight': weight, 'metadata': metadata or {}}
+        self.graph['edges'].append(edge)
+        
+    def get_edges(self, source=None, target=None, edge_type=None):
+        results = []
+        for edge in self.graph['edges']:
+            if source and edge['source'] != source: continue
+            if target and edge['target'] != target: continue
+            if edge_type and edge['type'] != edge_type: continue
+            results.append(edge)
+        return results
+
+class ActiveThreads:
+    """Manages the lifecycle of ongoing plot threads and objectives."""
+    def __init__(self, state):
+        self.state = state
+        self.threads = state.setdefault('active_threads', [])
+        
+    def add_thread(self, thread_id, description, priority=1, related_entities=None):
+        # Prevent duplicates
+        for t in self.threads:
+            if t['id'] == thread_id:
+                return
+        self.threads.append({
+            'id': thread_id,
+            'description': description,
+            'priority': priority,
+            'related_entities': related_entities or [],
+            'progress': 0,
+            'status': 'active'
+        })
+        self.threads.sort(key=lambda x: x['priority'], reverse=True)
+        
+    def get_top_thread(self):
+        active = [t for t in self.threads if t['status'] == 'active']
+        return active[0] if active else None
+
+class SceneCard:
+    """Represents the current scene card: objective, obstacle, cast, and setting."""
+    def __init__(self, state):
+        self.state = state
+        self.data = state.setdefault('scene_card', {
+            'objective': 'Explore and understand the surroundings',
+            'obstacle': 'None',
+            'cast': [],
+            'setting': ''
+        })
+
+    @property
+    def objective(self):
+        return self.data.setdefault('objective', 'Explore and understand the surroundings')
+
+    @objective.setter
+    def objective(self, value):
+        self.data['objective'] = value
+
+    @property
+    def obstacle(self):
+        return self.data.setdefault('obstacle', 'None')
+
+    @obstacle.setter
+    def obstacle(self, value):
+        self.data['obstacle'] = value
+
+    @property
+    def cast(self):
+        return self.data.setdefault('cast', [])
+
+    @cast.setter
+    def cast(self, value):
+        self.data['cast'] = value
+
+    @property
+    def setting(self):
+        return self.data.setdefault('setting', '')
+
+    @setting.setter
+    def setting(self, value):
+        self.data['setting'] = value
+
+class MemoryGraph:
+    """Tracks historical events categorized by impact, visits, etc."""
+    def __init__(self, state):
+        self.state = state
+        self.memory = state.setdefault('memory_graph', {'events': [], 'visits': {}})
+
+    def record_visit(self, location):
+        visits = self.memory.setdefault('visits', {})
+        visits[location] = visits.get(location, 0) + 1
+
+    def get_visits(self, location):
+        return self.memory.setdefault('visits', {}).get(location, 0)
+
+    def add_event(self, event_type, location, description, impact=1):
+        self.memory.setdefault('events', []).append({
+            'type': event_type,
+            'location': location,
+            'description': description,
+            'impact': impact,
+            'turn': self.state.get('turn', 0)
+        })
+        if len(self.memory['events']) > 30:
+            self.memory['events'] = self.memory['events'][-30:]
+
+class ConsequenceGraph:
+    """Manages forward-looking triggers, delayed consequences, and persistent world memory (debts, rumors, grudges)."""
+    def __init__(self, state, entity_graph):
+        self.state = state
+        self.entities = entity_graph
+        self.queue = state.setdefault('consequence_queue', [])
+        self.rumors = state.setdefault('rumour_state', {})
+        self.graph = state.setdefault('consequence_graph', {'triggers': []})
+
+    def add_trigger(self, trigger_type, condition, mutation, due_turn, metadata=None):
+        self.graph.setdefault('triggers', []).append({
+            'type': trigger_type,
+            'condition': condition,
+            'mutation': mutation,
+            'due_turn': due_turn,
+            'metadata': metadata or {}
+        })
+
+    def check_and_fire(self):
+        turn = self.state.get('turn', 0)
+        loc = self.state.get('location', '')
+        triggers = self.graph.setdefault('triggers', [])
+        fired = []
+        remaining = []
+        for t in triggers:
+            should_fire = False
+            cond = t.get('condition')
+            if cond == 'turn_elapsed' and turn >= t.get('due_turn', 0):
+                should_fire = True
+            elif cond == 'location_match' and loc == t.get('metadata', {}).get('location') and turn >= t.get('due_turn', 0):
+                should_fire = True
+            
+            if should_fire:
+                fired.append(t)
+            else:
+                remaining.append(t)
+        self.graph['triggers'] = remaining
+        return fired
+
+    def add_debt(self, entity_id, severity, context):
+        self.entities.add_edge('player', entity_id, 'debt', weight=severity, metadata={'context': context})
+        self.spread_rumor(f"A debt is owed over {context}", severity)
+        
+    def add_grudge(self, faction_id, severity, context):
+        self.entities.add_edge('player', faction_id, 'grudge', weight=severity, metadata={'context': context})
+        self.spread_rumor(f"The {faction_id} do not forgive what happened regarding {context}", severity)
+        
+    def spread_rumor(self, text, spread_speed):
+        rumor_id = f"rumor_{len(self.rumors)}"
+        self.rumors[rumor_id] = {'text': text, 'spread': spread_speed, 'turn_created': self.state.get('turn', 0)}
+
+class NarrativeState:
+    """Wrapper around the flat state dict to provide structured access to advanced narrative systems."""
+    def __init__(self, state):
+        self.state = state
+        self.entities = EntityGraph(state)
+        self.threads = ActiveThreads(state)
+        self.scene_card = SceneCard(state)
+        self.memory = MemoryGraph(state)
+        self.consequences = ConsequenceGraph(state, self.entities)
+
+    @property
+    def chapter_state(self):
+        return self.state.get('arc_phase', 'setup')
+
+    @property
+    def tension(self):
+        return self.state.get('tension', 0.5)
+
+    @property
+    def genre(self):
+        return self.state.get('genre', 'fantasy')
+
+    @property
+    def premise(self):
+        return self.state.get('opening', '')
+
+    @property
+    def wound(self):
+        return self.state.get('player_wound', '')
+
+    @property
+    def drive(self):
+        return self.state.get('player_drive', '')
+
+class StyleState:
+    """Evaluates narrative tension and phase to dictate prose pacing and structure."""
+    def __init__(self, state):
+        self.state = state
+        self.ns = NarrativeState(state)
+        self.tension = self.ns.tension
+        self.phase = self.ns.chapter_state
+        
+    def compose(self, components):
+        """Modularly assemble sentence components based on the current style state."""
+        revisit_note = components.get('revisit_note')
+        intro = components.get('intro', '')
+        body = components.get('body', '')
+        beat_text = components.get('beat_text', '')
+        hook = components.get('hook', '')
+        
+        # 1. Emotional pacing/filtering based on tension
+        if self.tension > 0.75:
+            intro = self._shorten(intro)
+            body = self._shorten(body) if random.random() < 0.3 else ''
+            beat_text = self._shorten(beat_text)
+            hook = self._shorten(hook)
+        elif self.tension < 0.4:
+            pass
+
+        # 2. Inject Subtext from Entity Graph & Scene Card
+        subtext_lines = []
+        loc = self.state.get('location', '')
+        faction = self.state.get('world', {}).get('current_region_faction', 'locals')
+        grudges = self.ns.entities.get_edges(source='player', target=faction, edge_type='grudge')
+        if grudges:
+            subtext_lines.append(f"A cold threat from the {faction} hangs over the area.")
+
+        last_npc = self.state.get('last_npc')
+        if last_npc and self.state.get('last_beat') == 'encounter':
+            debts = self.ns.entities.get_edges(source='player', target=last_npc, edge_type='debt')
+            if debts:
+                subtext_lines.append(f"{last_npc} watches you with calculated expectation, remembering what is owed.")
+            
+            npcs = self.state.get('continuity', {}).get('npcs', {})
+            if last_npc in npcs:
+                secret = npcs[last_npc].get('secret')
+                if secret and random.random() < 0.5:
+                    subtext_lines.append(f"There is a guarded silence in {last_npc.split(',')[0]}'s posture.")
+
+        # Assemble sentences
+        sentences = []
+        if intro: sentences.append(intro)
+        if body: sentences.append(body)
+        if revisit_note: sentences.append(revisit_note)
+        if subtext_lines: sentences.extend(subtext_lines)
+        if beat_text: sentences.append(beat_text)
+        if hook: sentences.append(hook)
+        
+        return ' '.join(filter(None, sentences))
+
+    def _shorten(self, text):
+        """Make sentences punchier for high tension."""
+        if not text:
+            return ''
+        sentences = text.split('. ')
+        shortened = []
+        for s in sentences:
+            s = s.strip()
+            if not s:
+                continue
+            if len(s.split()) > 10 and ',' in s:
+                s = s.split(',')[0]
+            shortened.append(s)
+        return '. '.join(shortened) + ('.' if shortened else '')
 def _harvest_premise(opening):
     """Extract specific nouns, verbs, and adjectives from opening premise."""
     words = _extract_keywords(opening)
@@ -161,10 +433,10 @@ def _weave_premise_keywords(state, key, fallback):
 def _get_natural_revisit_sentence(state, ctx):
     """Integrate memory of past visits dynamically into description."""
     loc = ctx['location']
-    loc_state = ctx.get('loc_state') or {}
-    visits = loc_state.get('last_visited', 0)
+    ns = NarrativeState(state)
+    visits = max(ctx.get('loc_state', {}).get('last_visited', 0), ns.memory.get_visits(loc))
     
-    if not visits or visits <= 1:
+    if visits <= 1:
         return ""
         
     flags = state.get('continuity', {}).get('world_flags', {})
@@ -175,7 +447,13 @@ def _get_natural_revisit_sentence(state, ctx):
     if loc in flags.get('secrets_discovered', []):
         return f"The translation marks you carved into the {ctx['object']} remain legible in the {ctx['weather']}."
         
-    return f"The path through the {loc} bears the familiar patterns of your prior crossing."
+    # Query MemoryGraph events for location
+    events = [e for e in ns.memory.memory.get('events', []) if e.get('location') == loc]
+    if events:
+        latest_event = events[-1]
+        return f"You return here: the memory of {latest_event.get('description', 'what happened here')} still lingers at the {loc}."
+
+    return f"The path through the {loc} bears the familiar patterns of your prior crossing. This is your visit number {visits}."
 
 def _npc_dialogue_line_adaptive(state, npc_record, ctx):
     """Adapt NPC dialogue lines based on player drives, character stats, and history."""
@@ -183,6 +461,16 @@ def _npc_dialogue_line_adaptive(state, npc_record, ctx):
     name = npc_record['name'].split(',')[0]
     
     stats = state.get('character', {}).get('stats', {})
+    
+    # Check for active rumors and comment on them occasionally
+    rumours = list(state.get('rumour_state', {}).values())
+    if rumours and random.random() < 0.4:
+        r = random.choice(rumours)
+        r_text = r['text'] if isinstance(r, dict) else r
+        # Clean text for dialogue formatting
+        r_clean = r_text.strip().rstrip('.')
+        return f"\"I've heard talk on the wind,\" {name} murmurs. \"They say that {r_clean}. Keep that in mind.\""
+
     if stats.get('Lore', 0) >= 4 and random.random() < 0.5:
         return f"\"I see the ink of the Accord on your fingers,\" {name} says. \"You know what history we are repeating.\""
     if stats.get('Cunning', 0) >= 4 and dominant == 'cautious':
@@ -275,15 +563,65 @@ def _render_prose_template(state, template, ctx):
     beat_text = template['beat'].format(**format_dict)
     hook = template['hook'].format(**format_dict)
     
-    if revisit_note:
-        sentences = [intro, body, revisit_note, beat_text, hook]
-    else:
-        sentences = [intro, body, beat_text, hook]
-        
-    return ' '.join(sentences)
+    style = StyleState(state)
+    return style.compose({
+        'intro': intro,
+        'body': body,
+        'beat_text': beat_text,
+        'hook': hook,
+        'revisit_note': revisit_note
+    })
 
 def _generate_choices_premise_aware(state, beat, choices, ctx):
-    """Inject premise-aligned custom branches directly into choice arrays."""
+    """Inject premise-aligned custom branches and SceneCard/EntityGraph-gated actions directly into choices."""
+    ns = NarrativeState(state)
+    
+    # 1. Dynamically update current SceneCard properties
+    ns.scene_card.setting = ctx.get('location', '')
+    if ctx.get('npc'):
+        ns.scene_card.cast = [ctx['npc']['name']]
+    else:
+        ns.scene_card.cast = []
+        
+    top_thread = ns.threads.get_top_thread()
+    if top_thread:
+        ns.scene_card.objective = f"Advance the quest: {top_thread['description']}"
+    else:
+        ns.scene_card.objective = "Explore the location and gather local rumors"
+        
+    if beat == 'obstacle':
+        ns.scene_card.obstacle = f"A barrier formed by {ctx.get('object', 'the terrain')}"
+    elif beat == 'conflict':
+        ns.scene_card.obstacle = f"Hostility from the {ctx.get('faction', 'hostiles')}"
+    else:
+        ns.scene_card.obstacle = "None"
+
+    # 2. Add thread-advancement choices if active
+    if top_thread:
+        thread_choice = f"Focus on your main goal: {top_thread['description']} at the {ctx.get('location')}"
+        if thread_choice not in choices:
+            choices.append(thread_choice)
+
+    # 3. Add EntityGraph relation-gated choices (debts/grudges)
+    npc = ctx.get('npc')
+    loc = ctx.get('location', '')
+    if npc:
+        npc_name = npc['name'].split(',')[0]
+        debts = ns.entities.get_edges(source='player', target=npc['name'], edge_type='debt')
+        if debts and beat == 'encounter':
+            debt_choice = f"Address the debt you owe {npc_name} in exchange for local path secrets"
+            if debt_choice not in choices:
+                choices.append(debt_choice)
+
+    faction = ctx.get('faction')
+    if faction:
+        grudges = ns.entities.get_edges(source='player', target=faction, edge_type='grudge')
+        if grudges and beat in ('encounter', 'conflict'):
+            grudge_choice = f"Attempt to negotiate a truce and defuse the grudge with the {faction}"
+            if grudge_choice not in choices:
+                choices.append(grudge_choice)
+
+    # 4. Standard premise-aligned custom choice injection (existing logic)
     harvest = state.get('opening_keywords_harvest', {})
     nouns = harvest.get('nouns', [])
     role = state.get('player_role')
@@ -294,9 +632,7 @@ def _generate_choices_premise_aware(state, beat, choices, ctx):
         
     target_noun = desc_nouns[-1]
     adjectives = harvest.get('adjectives', [])
-    npc = ctx.get('npc')
     npc_name = npc['name'].split(',')[0] if npc else "the stranger"
-    loc = ctx['location']
     
     category = 'object' # default fallback
     if target_noun in PREMISE_NOUN_PHRASING:
@@ -380,6 +716,8 @@ NPC_NAMES = [
     'the sentinel','the courier','the guide','the survivor','the scholar',
     'the hunter','the alchemist','the cartographer','the deserter','the oracle',
     'the engineer','the hermit','the prophet','the smuggler','the warden',
+    'the toll-taker', 'the grave-digger', 'the pathfinder', 'the turncoat',
+    'the chronicler', 'the outrider', 'the metal-smith', 'the harbor-master',
 ]
 
 NPC_PROPER_NAMES = [
@@ -387,6 +725,8 @@ NPC_PROPER_NAMES = [
     'Ilyan Thorne', 'Veyra Mourn', 'Tovin Ash', 'Elira Fen',
     'Damaris Pike', 'Rook Marrow', 'Ansel Grey', 'Nadia Kest',
     'Bren Tor', 'Silas Veld', 'Maera Quill', 'Corin Redhand',
+    'Orla Vance', 'Garrick Flint', 'Kaelen Frost', 'Lyra Stone',
+    'Jory Pyre', 'Elowen Rook', 'Bram Well', 'Taran Shade',
 ]
 
 STAT_NAMES = ['Vitality', 'Resolve', 'Cunning', 'Strength', 'Presence', 'Lore']
@@ -1022,6 +1362,97 @@ def compose_paragraph(state, beat, intent, action):
     ctx['turn'] = state.get('turn', 0)
     state['current_scene'] = ctx
 
+    # The older four-part templates were mechanically consistent but made every
+    # turn sound alike. Lead with the player's concrete action and vary the
+    # dramatic lens instead; the existing state systems still supply continuity.
+    return _compose_richer_scene(state, ctx, beat, intent, action)
+
+
+def _compose_richer_scene(state, ctx, beat, intent, action):
+    loc = ctx['location']
+    desc = ctx['description']
+    feature = ctx['features'][0] if ctx['features'] else ctx['object']
+    obj = ctx['object']
+    weather = ctx['weather']
+    faction = ctx['faction']
+    region = ctx['region']
+    action_text = (action or 'look around').strip().rstrip('.')
+    turn = state.get('turn', 1)
+    phase_formats = {
+        'setup': ['reflective', 'sensory_first', 'observational'],
+        'rising': ['observational', 'action_first', 'tense'],
+        'climax': ['tense', 'action_first'],
+        'falling': ['action_first', 'reflective'],
+    }
+    ctx['template_format'] = phase_formats.get(state.get('arc_phase', 'setup'), ['reflective'])[turn % len(phase_formats.get(state.get('arc_phase', 'setup'), ['reflective']))]
+
+    openings = {
+        'explore': [
+            f"You test the ground at the {loc} before trusting it with your weight.",
+            f"You let your attention travel across the {loc}, refusing to accept its first explanation.",
+            f"The {loc} gives you a handful of facts: {desc}, {feature}, and the sound of something moving out of sight.",
+        ],
+        'cautious': [
+            f"You slow at the {loc} and count the places where a watcher could stand.",
+            f"Nothing in the {loc} is harmless merely because it is quiet.",
+            f"You take the longer look, measuring {feature} against the exits and the weather.",
+        ],
+        'social': [
+            f"Your words carry through the {loc} farther than you intended.",
+            f"You make the first move with language, leaving the {loc} to decide whether it will answer.",
+            f"Someone near the {loc} has been waiting for a question like yours.",
+        ],
+        'aggressive': [
+            f"You act before the {loc} can turn your hesitation into an invitation.",
+            f"At the {loc}, restraint becomes a decision rather than a default.",
+            f"You put pressure on {feature} and listen for what breaks first.",
+        ],
+        'move': [
+            f"You leave the safest part of the {loc} behind and follow the route that costs you something.",
+            f"The next stretch begins where the {loc} stops pretending to be familiar.",
+            f"You move through {desc}, keeping one landmark between yourself and the open ground.",
+        ],
+        'use_item': [
+            f"You bring {obj} into the moment and give it one honest chance to matter.",
+            f"The thing in your hands changes the shape of the problem at the {loc}.",
+            f"You use {obj} against the scene rather than against your fear of it.",
+        ],
+    }
+    beat_lines = {
+        'encounter': f"A stranger steps into view near the {feature}; their attention settles on what you carry before it reaches your face.",
+        'obstacle': f"The route is blocked by a fresh complication at the {feature}. It was placed, not formed, and someone expected you to arrive.",
+        'revelation': f"One detail refuses to fit: the {feature} bears a mark made recently, in a hand that knew the local customs.",
+        'transition': f"Beyond the {loc}, a route toward {region} opens between the weather and the patrol lines.",
+        'conflict': f"The danger resolves into movement near the {feature}; you have seconds to decide whether position or force will save you.",
+        'rest': f"You find a brief shelter in the {loc}, long enough to count your supplies and hear your own breathing.",
+        'discovery': f"At the {feature}, you find a practical clue: the place has been used recently, and not by accident.",
+    }
+    hooks = [
+        f"The {faction} would care about this, which means you should decide what to hide before you decide what to do.",
+        f"Rain gathers over {desc}; whatever made the mark may return before it washes away.",
+        f"You can follow the clue, test it, or leave it for someone less careful.",
+        f"The answer is small enough to miss and important enough to change the next mile.",
+    ]
+    chosen = random.choice(openings.get(intent, openings['explore']))
+    line = beat_lines.get(beat, beat_lines['discovery'])
+    hook = hooks[(turn + len(state.get('events', []))) % len(hooks)]
+    action_variants = [
+        f"Your choice — {action_text.lower()} — changes what the scene is willing to reveal.",
+        f"By choosing to {action_text.lower()}, you give the moment a direction it did not have before.",
+        f"The decision to {action_text.lower()} costs you the safety of waiting and buys you one clearer fact.",
+        f"You commit to {action_text.lower()}; somewhere nearby, the world adjusts its answer.",
+    ]
+    action_line = action_variants[turn % len(action_variants)]
+    if beat == 'encounter' and ctx.get('npc'):
+        npc = ctx['npc']
+        line = f"{npc['name']} steps into view near the {feature}. {_npc_dialogue_line_adaptive(state, npc, ctx)}"
+    motif = _get_motif_text(state)
+    parts = [chosen, action_line, line, motif, hook]
+    pending = state.pop('_pending_item_use', None)
+    if pending:
+        parts.insert(2, pending)
+    return _shape_scene_prose(state, ' '.join(_clean_sentence(p) for p in parts), state.get('arc_phase', 'setup'))
+
     phase = state.get('arc_phase', 'setup')
     if phase == 'setup':
         preferred = ['reflective', 'sensory_first', 'observational']
@@ -1271,6 +1702,18 @@ def _ensure_state_defaults(state, new_game=False):
     state.setdefault('prose_memory', {'recent_hooks': [], 'recent_phrases': []})
     state['prose_memory'].setdefault('recent_hooks', [])
     state['prose_memory'].setdefault('recent_phrases', [])
+    
+    # ── Advanced narrative system structures ──
+    state.setdefault('entity_graph', {'nodes': {}, 'edges': []})
+    state.setdefault('active_threads', [])
+    state.setdefault('scene_card', {
+        'objective': 'Explore and understand the surroundings',
+        'obstacle': 'None',
+        'cast': [],
+        'setting': ''
+    })
+    state.setdefault('memory_graph', {'events': [], 'visits': {}})
+    state.setdefault('consequence_graph', {'triggers': []})
 
     state.setdefault('inventory', _default_inventory())
     inv = state['inventory']
@@ -1622,14 +2065,21 @@ def _enqueue_consequence(state, branch_event, intent, beat):
         'intensity': 2 if intent == 'aggressive' else 1,
         'surfaced': False,
     }
-    state.setdefault('consequence_queue', []).append(entry)
-    state['consequence_queue'].sort(key=lambda item: item.get('due_turn', 9999))
+    
+    ns = NarrativeState(state)
+    ns.consequences.queue.append(entry)
+    ns.consequences.queue.sort(key=lambda item: item.get('due_turn', 9999))
+    
     if intent == 'cautious':
         state.setdefault('player_knowledge', []).append(f"hidden path near {loc}")
         del state['player_knowledge'][:-18]
+        ns.consequences.spread_rumor(f"Someone knows the hidden paths near {loc}", 1)
     if intent == 'aggressive':
         state.setdefault('faction_dispositions', {})[faction] = state.setdefault('faction_dispositions', {}).get(faction, 0) - 1
+        ns.consequences.add_grudge(faction, 2, f"violence at {loc}")
     elif intent == 'social':
+        if 'last_npc' in state:
+            ns.consequences.add_debt(state['last_npc'], 1, f"a favor at {loc}")
         state.setdefault('faction_dispositions', {})[faction] = state.setdefault('faction_dispositions', {}).get(faction, 0) + 1
     return entry
 
@@ -1981,7 +2431,7 @@ def _create_item(state, item_type=None, name=None):
         'consumable': ['draught', 'salve', 'ration', 'bitterroot'],
         'key': ['key', 'seal', 'token', 'charm'],
         'artefact': ['idol', 'lens', 'reliquary', 'astrolabe'],
-        'lore': ['codex', 'scrap', 'tablet', 'ledger'],
+        'lore': ['chronicle', 'scrap', 'tablet', 'ledger'],
         'accessory': ['ring', 'brooch', 'cord', 'mask'],
     }
     noun = random.choice(noun_map[item_type])
@@ -2190,7 +2640,16 @@ def _panel_payload(state):
     region = world.get('current_region', 'the road')
     time = world.get('time', {})
     rep = world.get('reputation', {}).get(region, 'unknown')
-    rumours = [r['text'] for r in world.get('rumours', []) if r.get('heard')]
+    
+    # Expose custom active rumors from rumour_state
+    active_rumours = []
+    for r in state.get('rumour_state', {}).values():
+        if isinstance(r, dict) and 'text' in r:
+            active_rumours.append(r['text'])
+        elif isinstance(r, str):
+            active_rumours.append(r)
+            
+    rumours = [r['text'] for r in world.get('rumours', []) if r.get('heard')] + active_rumours
     threads = [e.get('text', '') for e in state['continuity'].get('narrative_threads', [])[-10:]]
     journal_parts = [
         f"The current region is {region}; day {time.get('day', 1)} has reached {time.get('slot', 'day')} under {world.get('weather', 'still air')}.",
@@ -2200,6 +2659,15 @@ def _panel_payload(state):
         journal_parts.append("Rumours travel ahead of you: " + " ".join(rumours[-3:]))
     if threads:
         journal_parts.append("The road keeps these events warm: " + " ".join(threads))
+        
+    # Expose Faction Goal progression
+    faction_threads = state.get('faction_threads', [])
+    if faction_threads:
+        f_parts = []
+        for ft in faction_threads:
+            f_parts.append(f"{ft['faction']} are focused on {ft['goal']} ({ft['progress']}% complete)")
+        journal_parts.append("Faction off-screen goal progress: " + " | ".join(f_parts))
+
     if state.get('pivots_applied'):
         journal_parts.append("Recent world shifts: " + " ".join(p['description'] for p in state['pivots_applied'][-2:]))
     if state.get('consequence_queue'):
@@ -2387,6 +2855,31 @@ class StoryEngine:
         ctx = _scene_context(state, beat='discovery', intent='explore', action=opening)
         state['current_scene'] = ctx
 
+        # Give the first page a bespoke scene instead of the generic discovery
+        # template; this is where the player's premise earns its specificity.
+        harvest = state.get('opening_keywords_harvest', {})
+        nouns = harvest.get('nouns', [])
+        premise_object = nouns[-1] if nouns else 'the nearest clue'
+        opening_lines = [
+            f"The first thing you notice is {state['location_desc']}. Your body remembers how to breathe before your mind remembers why you are here.",
+            f"Your hand finds {premise_object} before it finds certainty. The detail is ordinary enough to be trusted, which makes it dangerous.",
+            f"Somewhere beyond the {loc}, a sound answers the fact of your arrival. It is too deliberate to be weather.",
+            f"You have one immediate advantage: you are awake, and the place has not yet decided what that means.",
+        ]
+        base_story = ' '.join(opening_lines)
+        p0 = _identity_opening_sentence(state, opening)
+        story = (p0 + " " + base_story) if p0 else base_story
+        story = _shape_scene_prose(state, story, state.get('arc_phase', 'setup'))
+        scene = state['location_desc']
+        choices = generate_choices(state, 'discovery')
+        _record_thread(state, f"your story began at the {loc}", 'opening', 7)
+        _touch_location_memory(state, loc, 'your story began here')
+        ns = NarrativeState(state)
+        ns.memory.record_visit(loc)
+        state['beat_history'].append('discovery')
+        state['last_action'] = opening
+        return story, scene, choices, None
+
         templates = PROSE_TEMPLATES.get('discovery', [])
         template = random.choice(templates) if templates else {
             'format': "sensory_first",
@@ -2411,6 +2904,8 @@ class StoryEngine:
         choices = generate_choices(state, 'discovery')
         _record_thread(state, f"your story began at the {loc}", 'opening', 7)
         _touch_location_memory(state, loc, 'your story began here')
+        ns = NarrativeState(state)
+        ns.memory.record_visit(loc)
         state['beat_history'].append('discovery')
         state['last_action'] = opening
         return story, scene, choices, None
@@ -2424,6 +2919,28 @@ class StoryEngine:
         locs = GENRE_LOCATIONS.get(genre, GENRE_LOCATIONS['fantasy'])
         turn = state.get('turn', 0) + 1
         state['turn'] = turn
+
+        # Consequence Graph triggers & Faction simulation
+        ns = NarrativeState(state)
+        ns.memory.record_visit(state['location'])
+        _simulate_faction_threads(state)
+        consequences_fired = ns.consequences.check_and_fire()
+        consequence_texts = []
+        for trigger in consequences_fired:
+            mut = trigger.get('mutation')
+            if mut == 'force_conflict':
+                state['force_next_beat'] = 'conflict'
+            elif mut == 'add_debt':
+                meta = trigger.get('metadata', {})
+                ns.consequences.add_debt(meta.get('npc'), meta.get('severity', 1), meta.get('context', 'past actions'))
+            elif mut == 'add_grudge':
+                meta = trigger.get('metadata', {})
+                ns.consequences.add_grudge(meta.get('faction'), meta.get('severity', 1), meta.get('context', 'past actions'))
+            elif mut == 'reveal_secret':
+                state.setdefault('player_knowledge', []).append(trigger.get('metadata', {}).get('secret', 'a hidden truth'))
+            consequence_texts.append(f"Word catches up: {trigger.get('metadata', {}).get('description') or trigger.get('description', 'a consequence has triggered')}.")
+
+        state['_consequence_texts'] = consequence_texts
 
         _advance_arc(state, turn)
 
@@ -2461,6 +2978,7 @@ class StoryEngine:
             new_loc = random.choice(candidates) if candidates else random.choice(locs)
             state['location'] = new_loc[0]
             state['location_desc'] = new_loc[1]
+            ns.memory.record_visit(new_loc[0])
             _region_for_location_shift(state)
             state['turns_since_location_change'] = 0
 
@@ -2486,6 +3004,9 @@ class StoryEngine:
 
         # Compose
         story = compose_paragraph(state, beat, intent, action)
+        consequence_texts = state.pop('_consequence_texts', [])
+        if consequence_texts:
+            story = " ".join(consequence_texts) + " " + story
         scene = state['location_desc']
         choices = generate_choices(state, beat)
         checkpoint = _maybe_checkpoint(state, beat, turn)
@@ -2572,15 +3093,44 @@ def _advance_arc(state, turn):
             state['tension'] = 0.3 + random.random() * 0.1
 
 def _pick_beat(state, intent=None):
-    """Select the next beat using phase, salience, recency, and caps."""
-    phase = state.get('arc_phase', 'setup')
-    weights = _beat_weights_for_phase(phase, state.get('turn', 0))
+    """Select the next beat deterministically using ActiveThreads and ChapterState."""
+    forced = state.pop('force_next_beat', None)
+    if forced:
+        return forced
+    ns = NarrativeState(state)
+    phase = ns.chapter_state
+    
+    # 1. Thread-driven deterministic beats
+    top_thread = ns.threads.get_top_thread()
     history = state.setdefault('beat_history', [])[-5:]
+    
+    # Avoid repeating the last beat even if thread demands it
+    last_beat = history[-1] if history else None
+
+    if top_thread:
+        priority = top_thread.get('priority', 1)
+        progress = top_thread.get('progress', 0)
+        if priority >= 4 or progress >= 60:
+            if phase in ('climax', 'rising'):
+                if last_beat != 'conflict': return 'conflict'
+            else:
+                if last_beat != 'revelation': return 'revelation'
+        elif 30 <= progress < 60:
+            if last_beat != 'encounter': return 'encounter'
+            
+    # 2. Tension management
+    if ns.tension > 0.85 and last_beat != 'rest':
+        return 'rest'  # Force a breath beat
+    elif ns.tension < 0.3 and phase == 'rising' and last_beat != 'encounter':
+        return 'encounter' # Inject friction
+        
+    # 3. Fallback to modified weight selection
+    weights = _beat_weights_for_phase(phase, state.get('turn', 0))
     candidates = []
     for beat, base in weights.items():
         if base <= 0:
             continue
-        if history and beat == history[-1]:
+        if beat == last_beat:
             continue
         if beat in ('discovery', 'conflict') and history.count(beat) >= 2:
             continue
@@ -2589,20 +3139,15 @@ def _pick_beat(state, intent=None):
             candidates.append((beat, score))
 
     if not candidates:
-        fallback = [beat for beat in weights if not history or beat != history[-1]]
+        fallback = [beat for beat in weights if beat != last_beat]
         fallback = [beat for beat in fallback if beat not in ('discovery', 'conflict') or history.count(beat) < 2]
         if not fallback:
             fallback = ['transition', 'encounter', 'rest', 'obstacle']
         candidates = [(beat, max(weights.get(beat, 1), 1)) for beat in fallback]
 
-    total = sum(score for _, score in candidates)
-    roll = random.uniform(0, total)
-    cursor = 0
-    for beat, score in candidates:
-        cursor += score
-        if roll <= cursor:
-            return beat
-    return candidates[-1][0]
+    # Deterministic selection: sort descending by score and pick the highest
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    return candidates[0][0]
 
 def _beat_weights_for_phase(phase, turn):
     """Return phase-specific base salience for story beats."""
@@ -2625,32 +3170,75 @@ def _beat_salience(state, beat, intent):
     """Score a beat against current state qualities."""
     score = 0
     tension = state.get('tension', 0.5)
+    role = state.get('player_role')
+    drive = state.get('player_drive')
+    
+    # 1. Intent Coupling (Tuned for tighter pacing)
     if intent == 'aggressive' and beat in ('conflict', 'obstacle', 'encounter'):
-        score += 3
+        score += 5
     if intent == 'social' and beat == 'encounter':
-        score += 3
-    if intent == 'cautious' and beat in ('discovery', 'obstacle', 'rest'):
-        score += 2
+        score += 6
+    if intent == 'cautious':
+        if beat in ('discovery', 'rest'):
+            score += 5
+        elif beat == 'obstacle':
+            score += 4
     if intent == 'use_item' and beat in ('revelation', 'obstacle', 'discovery'):
-        score += 2
+        score += 4
     if intent == 'move' and beat == 'transition':
-        score += 3
+        score += 5
+        
+    # 2. State & Tension Coupling
     if state.get('consequence_queue') and beat in ('encounter', 'revelation', 'conflict'):
-        score += 1
+        score += 2
     if state.get('turn', 0) and state.get('turn', 0) % 6 == 0 and beat != 'rest':
         score += 1
     if tension > 0.72 and beat in ('conflict', 'revelation', 'obstacle'):
-        score += 2
+        score += 3
     if tension < 0.35 and beat in ('discovery', 'transition', 'encounter'):
-        score += 1
-    if state.get('player_role') == 'cartographer' and beat in ('discovery', 'transition'):
-        score += 1
-    if state.get('player_drive') in ('atonement', 'redemption') and beat in ('encounter', 'revelation'):
-        score += 1
+        score += 2
+        
+    # 3. Role & Drive Specific Modifiers
+    if role == 'cartographer' and beat in ('discovery', 'transition'):
+        score += 2
+    if role == 'scholar' and beat in ('revelation', 'discovery'):
+        score += 2
+    if role == 'spy' and beat in ('revelation', 'encounter'):
+        score += 2
+    if drive in ('revenge', 'survival') and beat in ('conflict', 'obstacle'):
+        score += 2
+    if drive in ('atonement', 'redemption') and beat in ('encounter', 'revelation'):
+        score += 2
+        
+    # 4. Active Threads Modifier
+    active_threads = state.get('active_threads', [])
+    if active_threads and beat in ('conflict', 'revelation'):
+        score += 2
+
+    # 5. Active Wound Matcher (Ties character lore to story beat salience)
+    wound = (state.get('player_wound') or '').lower()
+    if wound:
+        if any(w in wound for w in ['bleed', 'death', 'lives', 'blade', 'hurt', 'wound', 'kill', 'mercenary', 'order']):
+            if beat in ('conflict', 'obstacle', 'encounter'):
+                score += 3
+        if any(w in wound for w in ['secret', 'oath', 'vow', 'prayer', 'lies', 'spy']):
+            if beat in ('revelation', 'discovery'):
+                score += 3
+        if any(w in wound for w in ['drowned', 'salt', 'sea', 'ship', 'home', 'road', 'map', 'cartographer', 'deserter']):
+            if beat in ('transition', 'discovery'):
+                score += 3
+        if any(w in wound for w in ['debt', 'contract', 'price', 'thief']):
+            if beat in ('encounter', 'obstacle'):
+                score += 3
+        if any(w in wound for w in ['healer', 'pulse', 'rest', 'empty', 'survivor']):
+            if beat == 'rest':
+                score += 3
+
     if beat == 'transition':
         turns_stayed = state.get('turns_since_location_change', 0)
         if turns_stayed > 2:
-            score += (turns_stayed - 2)
+            score += (turns_stayed - 2) * 2
+            
     return score
 
 def _parse_intent(action):
@@ -2681,3 +3269,53 @@ def _maybe_checkpoint(state, beat, turn):
     if turn > 0 and turn % 8 == 0:
         return {'type': 'achievement', 'description': f"Survived {turn} turns of the unknown"}
     return None
+
+def _simulate_faction_threads(state):
+    """Simulate faction goal progress off-screen, triggering events and location-based consequence triggers."""
+    ns = NarrativeState(state)
+    factions = REGION_FACTIONS
+    faction_threads = state.setdefault('faction_threads', [])
+    
+    # Initialize faction threads if empty
+    if not faction_threads:
+        # Choose 2 random factions to track
+        for f in random.sample(factions, 2):
+            goals = ["securing borders", "hunting defectors", "extracting tithes", "gathering relics"]
+            faction_threads.append({
+                'faction': f,
+                'goal': random.choice(goals),
+                'progress': random.randint(10, 30)
+            })
+            
+    # Advance progress
+    for thread in faction_threads:
+        thread['progress'] += random.randint(10, 20)
+        if thread['progress'] >= 100:
+            thread['progress'] = 0
+            genre = state.get('genre', 'fantasy')
+            locs = GENRE_LOCATIONS.get(genre, GENRE_LOCATIONS['fantasy'])
+            target_loc = random.choice(locs)[0]
+            event_desc = f"The {thread['faction']} completed their goal of {thread['goal']} at the {target_loc}."
+            
+            # Record in MemoryGraph
+            ns.memory.add_event(
+                event_type='faction_event',
+                location=target_loc,
+                description=event_desc,
+                impact=2
+            )
+            
+            # Queue location-match consequence trigger
+            ns.consequences.add_trigger(
+                trigger_type='faction_ambush',
+                condition='location_match',
+                mutation='force_conflict',
+                due_turn=state.get('turn', 0) + 1,
+                metadata={'location': target_loc, 'faction': thread['faction']}
+            )
+            
+            # Spread rumor
+            ns.consequences.spread_rumor(
+                f"Rumors say the {thread['faction']} have finished {thread['goal']} near the {target_loc}.",
+                spread_speed=2
+            )
