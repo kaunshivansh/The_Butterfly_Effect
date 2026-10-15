@@ -13,7 +13,7 @@ pip install -r requirements.txt
 python3 app.py
 ```
 
-Open http://127.0.0.1:5000.
+Open http://127.0.0.1:5050. Set `PORT=5000` only if that port is free on your machine.
 
 ## How it works
 

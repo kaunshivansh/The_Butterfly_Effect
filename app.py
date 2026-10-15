@@ -262,4 +262,5 @@ def api_load_checkpoint(checkpoint_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true"}, port=5000)
+    port = int(os.environ.get("PORT", "5050"))
+    app.run(debug=os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true"}, port=port)
