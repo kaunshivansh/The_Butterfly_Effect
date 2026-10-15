@@ -1447,7 +1447,13 @@ def _compose_richer_scene(state, ctx, beat, intent, action):
         npc = ctx['npc']
         line = f"{npc['name']} steps into view near the {feature}. {_npc_dialogue_line_adaptive(state, npc, ctx)}"
     motif = _get_motif_text(state)
-    parts = [chosen, action_line, line, motif, hook]
+    harvest = state.get('opening_keywords_harvest', {})
+    premise_terms = [t for t in harvest.get('nouns', []) + harvest.get('verbs', []) if len(t) > 3][:4]
+    premise_anchor = ''
+    if premise_terms:
+        joined = ', '.join(premise_terms[:3])
+        premise_anchor = f"The premise you carried into this place remains active: {joined} is not background here; it is pressure."
+    parts = [chosen, action_line, line, premise_anchor, motif, hook]
     pending = state.pop('_pending_item_use', None)
     if pending:
         parts.insert(2, pending)
