@@ -15,16 +15,29 @@ import ssl
 import time
 import urllib.parse
 import urllib.request
+import base64
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 IMAGES_DIR = STATIC_DIR / "game_images"
-CACHE_DIR = IMAGES_DIR / "cache"
+_IS_VERCEL = bool(os.environ.get("VERCEL"))
+CACHE_DIR = Path("/tmp/game_images/cache") if _IS_VERCEL else (IMAGES_DIR / "cache")
 PRESETS_DIR = IMAGES_DIR / "presets"
 
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
-PRESETS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    CACHE_DIR = Path("/tmp/game_images/cache")
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+
+try:
+    PRESETS_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    pass
 
 # SSL context for safe outgoing requests on macOS/Linux
 _SSL_CTX = ssl._create_unverified_context()
@@ -186,6 +199,18 @@ def download_first_valid_image(candidate_urls: list[str]) -> bytes:
     return b""
 
 
+def _to_data_uri(image_bytes: bytes) -> str:
+    """Encode image bytes into a data URI for direct in-browser rendering without disk writes."""
+    if image_bytes.startswith(b"\x89PNG"):
+        mime = "image/png"
+    elif image_bytes.startswith(b"RIFF") and b"WEBP" in image_bytes[:16]:
+        mime = "image/webp"
+    else:
+        mime = "image/jpeg"
+    b64 = base64.b64encode(image_bytes).decode("ascii")
+    return f"data:{mime};base64,{b64}"
+
+
 def get_preset_image_bytes(role: str = "wanderer", genre: str = "fantasy") -> tuple[bytes, str]:
     """Retrieve verified local preset image matching role or genre."""
     role_key = (role or "wanderer").lower()
@@ -220,13 +245,17 @@ def get_preset_image_bytes(role: str = "wanderer", genre: str = "fantasy") -> tu
     chosen_file = role_map.get(role_key) or genre_map.get(genre_key) or "fantasy.jpg"
     preset_path = PRESETS_DIR / chosen_file
 
-    if preset_path.exists() and preset_path.stat().st_size > 5000:
-        return preset_path.read_bytes(), chosen_file
+    try:
+        if preset_path.exists() and preset_path.stat().st_size > 5000:
+            return preset_path.read_bytes(), chosen_file
 
-    # If the specific preset doesn't exist, search PRESETS_DIR for any valid jpg
-    for p in PRESETS_DIR.glob("*.jpg"):
-        if p.stat().st_size > 5000:
-            return p.read_bytes(), p.name
+        # If the specific preset doesn't exist, search PRESETS_DIR for any valid jpg
+        if PRESETS_DIR.exists():
+            for p in PRESETS_DIR.glob("*.jpg"):
+                if p.stat().st_size > 5000:
+                    return p.read_bytes(), p.name
+    except OSError:
+        pass
 
     return b"", ""
 
@@ -241,15 +270,21 @@ def resolve_scene_image(prompt: str, seed: int = 42, role: str = "wanderer", gen
     cache_rel_url = f"/static/game_images/cache/{key}.jpg"
 
     # 1. Disk cache check
-    if cache_path.exists() and cache_path.stat().st_size > 8192:
-        return cache_rel_url, "cache"
+    try:
+        if cache_path.exists() and cache_path.stat().st_size > 8192:
+            return cache_rel_url, "cache"
+    except OSError:
+        pass
 
     # 2. Tier 1: Try AI Generation
     try:
         ai_data = fetch_from_pollinations(prompt, seed=seed)
         if ai_data and _is_valid_image_bytes(ai_data):
-            cache_path.write_bytes(ai_data)
-            return cache_rel_url, "ai_generation"
+            try:
+                cache_path.write_bytes(ai_data)
+                return cache_rel_url, "ai_generation"
+            except OSError:
+                return _to_data_uri(ai_data), "ai_generation"
     except Exception:
         pass
 
@@ -260,20 +295,36 @@ def resolve_scene_image(prompt: str, seed: int = 42, role: str = "wanderer", gen
         if candidates:
             web_data = download_first_valid_image(candidates)
             if web_data:
-                cache_path.write_bytes(web_data)
-                return cache_rel_url, "web_search"
+                try:
+                    cache_path.write_bytes(web_data)
+                    return cache_rel_url, "web_search"
+                except OSError:
+                    return _to_data_uri(web_data), "web_search"
     except Exception:
         pass
 
     # 4. Tier 3: Preset Vault fallback
-    preset_data, preset_name = get_preset_image_bytes(role=role, genre=genre)
-    if preset_data:
-        cache_path.write_bytes(preset_data)
-        return cache_rel_url, f"preset_{preset_name}"
+    try:
+        preset_data, preset_name = get_preset_image_bytes(role=role, genre=genre)
+        if preset_data:
+            try:
+                cache_path.write_bytes(preset_data)
+                return cache_rel_url, f"preset_{preset_name}"
+            except OSError:
+                return _to_data_uri(preset_data), f"preset_{preset_name}"
+    except Exception:
+        pass
 
     # Default to any existing static game image
-    for img_file in IMAGES_DIR.glob("*.jpg"):
-        if img_file.stat().st_size > 8192:
-            return f"/static/game_images/{img_file.name}", "static_fallback"
+    try:
+        if IMAGES_DIR.exists():
+            for img_file in IMAGES_DIR.glob("*.jpg"):
+                if img_file.stat().st_size > 8192:
+                    return f"/static/game_images/{img_file.name}", "static_fallback"
+    except OSError:
+        pass
 
-    return cache_rel_url, "none"
+    # Safe fallback: direct pollinations URL
+    encoded = urllib.parse.quote(prompt)
+    direct_url = f"https://image.pollinations.ai/prompt/{encoded}?width=960&height=640&nologo=true&seed={seed}&model=flux"
+    return direct_url, "ai_direct"

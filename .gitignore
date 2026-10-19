@@ -28,8 +28,11 @@ lore_corpus/__pycache__/
 !lore_corpus/documents/.keep
 
 # Downloaded Images Cache
-static/game_images/*
-!static/game_images/.keep
+static/game_images/cache/*
+!static/game_images/cache/.keep
+static/game_images/*.jpg
+!static/game_images/presets/
+!static/game_images/presets/*
 
 # macOS
 .DS_Store

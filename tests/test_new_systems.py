@@ -775,8 +775,40 @@ class SecurityAndHardeningTest(unittest.TestCase):
             genre="scifi",
             loc="orbital platform"
         )
-        self.assertTrue(img_url.startswith("/static/game_images/"))
-        self.assertIn(src, ("cache", "ai_generation", "web_search", "preset_astronaut.jpg", "static_fallback"))
+        self.assertTrue(img_url.startswith("/static/game_images/") or img_url.startswith("data:image/") or img_url.startswith("https://"))
+        self.assertIn(src, ("cache", "ai_generation", "web_search", "preset_astronaut.jpg", "static_fallback", "ai_direct"))
+
+    def test_vercel_and_serverless_compatibility(self):
+        import app
+        client = app.app.test_client()
+
+        # Test index and game routes
+        res = client.get("/")
+        self.assertEqual(res.status_code, 200)
+
+        res = client.get("/game?save_id=none")
+        self.assertEqual(res.status_code, 200)
+
+        # Test starting a game without read-only errors
+        res = client.post("/api/game/new", json={"opening": "I am a silent watcher on a forgotten tower."})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn("save_id", data)
+        self.assertIn("access_key", data)
+        self.assertIn("image_url", data)
+
+        save_id = data["save_id"]
+        key = data["access_key"]
+
+        # Test taking an action
+        res = client.post(
+            "/api/game/action",
+            json={"save_id": save_id, "action": "Look over the parapet"},
+            headers={"X-Save-Key": key}
+        )
+        self.assertEqual(res.status_code, 200)
+        action_data = res.get_json()
+        self.assertEqual(action_data.get("turn"), 2)
 
 
 if __name__ == "__main__":

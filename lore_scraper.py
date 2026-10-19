@@ -15,7 +15,14 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 LORE_DIR = BASE_DIR / "lore_corpus" / "documents"
-LORE_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    LORE_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    LORE_DIR = Path("/tmp/lore_corpus/documents")
+    try:
+        LORE_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
 
 _SSL_CTX = ssl._create_unverified_context()
 _USER_AGENT = "ButterflyLoreScraper/2.0 (narrative_research; +https://github.com/kaunshivansh/The_Butterfly_Effect)"
@@ -160,7 +167,10 @@ def scrape_and_create_lore_pack(premise: str, role: str = "", setting: str = "")
 
     # Save to story repository
     dest_file = LORE_DIR / f"{genre_id}.json"
-    dest_file.write_text(json.dumps(lore_pack, indent=2), encoding="utf-8")
+    try:
+        dest_file.write_text(json.dumps(lore_pack, indent=2), encoding="utf-8")
+    except OSError:
+        pass
     return lore_pack
 
 
@@ -196,8 +206,11 @@ def build_lore_pack(
     }
 
     dest_file = LORE_DIR / f"{genre_id}.json"
-    dest_file.write_text(json.dumps(lore_pack, indent=2), encoding="utf-8")
-    print(f"Saved lore pack to {dest_file} ({dest_file.stat().st_size} bytes)")
+    try:
+        dest_file.write_text(json.dumps(lore_pack, indent=2), encoding="utf-8")
+        print(f"Saved lore pack to {dest_file} ({dest_file.stat().st_size} bytes)")
+    except OSError:
+        pass
     return lore_pack
 
 

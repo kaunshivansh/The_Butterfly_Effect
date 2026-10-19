@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from story_engine import StoryEngine
 from image_retriever import resolve_scene_image
@@ -27,8 +27,13 @@ app.config.update(
     MAX_CONTENT_LENGTH=32 * 1024,
 )
 
-SAVES_DIR = Path(os.environ.get("BUTTERFLY_SAVES_DIR", "saves"))
-SAVES_DIR.mkdir(parents=True, exist_ok=True)
+_DEFAULT_SAVES = "/tmp/saves" if os.environ.get("VERCEL") else "saves"
+SAVES_DIR = Path(os.environ.get("BUTTERFLY_SAVES_DIR", _DEFAULT_SAVES))
+try:
+    SAVES_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    SAVES_DIR = Path("/tmp/saves")
+    SAVES_DIR.mkdir(parents=True, exist_ok=True)
 MAX_ACTION_LENGTH = 1_000
 
 
@@ -51,7 +56,12 @@ def _read(save_id):
     if not _is_safe_id(save_id):
         return None
     try:
-        data = json.loads((SAVES_DIR / f"{save_id}.json").read_text(encoding="utf-8"))
+        path = SAVES_DIR / f"{save_id}.json"
+        if not path.exists():
+            fallback = Path("saves") / f"{save_id}.json"
+            if fallback.exists():
+                path = fallback
+        data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) and data.get("id") == save_id else None
     except (OSError, ValueError, TypeError):
         return None
@@ -77,10 +87,19 @@ def _write(save):
     if not isinstance(save, dict) or not _is_safe_id(save.get("id")):
         raise ValueError("Invalid save")
     save["updated_at"] = _now()
-    path = SAVES_DIR / f"{save['id']}.json"
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(save, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    temporary.replace(path)
+    data = json.dumps(save, ensure_ascii=False, separators=(",", ":"))
+    try:
+        path = SAVES_DIR / f"{save['id']}.json"
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(data, encoding="utf-8")
+        temporary.replace(path)
+    except OSError:
+        tmp_dir = Path("/tmp/saves")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        path = tmp_dir / f"{save['id']}.json"
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(data, encoding="utf-8")
+        temporary.replace(path)
 
 
 def _turn(story, scene, choices):
@@ -287,6 +306,20 @@ def api_scene_image():
         return jsonify({"error": "Missing prompt query"}), 400
     image_url, src = resolve_scene_image(prompt=q, seed=seed, role=role, genre=genre, loc=loc)
     return jsonify({"url": image_url, "source": src})
+
+
+@app.get("/static/game_images/cache/<path:filename>")
+def serve_cached_image(filename):
+    from image_retriever import CACHE_DIR, STATIC_DIR
+    try:
+        if CACHE_DIR.exists() and (CACHE_DIR / filename).is_file():
+            return send_from_directory(str(CACHE_DIR), filename)
+        local_cache = STATIC_DIR / "game_images" / "cache"
+        if local_cache.exists() and (local_cache / filename).is_file():
+            return send_from_directory(str(local_cache), filename)
+    except OSError:
+        pass
+    return ("Image not found", 404)
 
 
 @app.post("/api/game/save-checkpoint")
