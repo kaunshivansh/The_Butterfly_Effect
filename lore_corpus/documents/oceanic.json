@@ -1,0 +1,84 @@
+{
+  "genre_id": "oceanic",
+  "name": "Abyssal Trench & Deep Sea",
+  "keywords": [
+    "submarine",
+    "ocean",
+    "deep sea",
+    "abyss",
+    "diver",
+    "trench",
+    "hull",
+    "sonar",
+    "torpedo",
+    "water",
+    "drowning",
+    "pressure",
+    "submersible"
+  ],
+  "communication_mode": "radio_comms",
+  "scraped_sources": [
+    {
+      "title": "Challenger Deep",
+      "description": "Deepest known point of Earth's seabed",
+      "extract": "The Challenger Deep is the deepest known point of the seabed of Earth, located in the western Pacific Ocean at the southern end of the Mariana Trench, in the ocean territory of the Federated States of Micronesia."
+    },
+    {
+      "title": "Submersible",
+      "description": "Small watercraft able to navigate under water",
+      "extract": "A submersible is an underwater vehicle which needs to be transported and supported by a larger watercraft or platform. This distinguishes submersibles from submarines, which are self-supporting and capable of prolonged independent operation at sea."
+    },
+    {
+      "title": "Deep sea",
+      "description": "Lowest layer in the ocean",
+      "extract": "The deep sea is broadly defined as the ocean depth where light begins to fade, at an approximate depth of 200\u00a0m (660\u00a0ft) or the point of transition from continental shelves to continental slopes. Conditions within the deep sea are a combination of low temperatures, darkness, and high pressure. The deep sea is considered the least explored Earth biome as the extreme conditions make the environment difficult to access and explore."
+    }
+  ],
+  "environment": [
+    "the cramped, condensation-drenched cockpit of a deep-sea submersible suspended in pitch-black water",
+    "a towering hydrothermal chimney spewing shimmering mineral plumes into the abyss",
+    "the crushed skeletal iron of a sunken freighter resting upon the silty trench floor"
+  ],
+  "hazards": [
+    "a deafening groan of titanium framing as ambient pressure exceeds six hundred atmospheres",
+    "a flashing red indicator warning that the starboard ballast valve has frozen open",
+    "a sudden battery drain plunging the cabin into absolute, suffocating darkness"
+  ],
+  "terminology": [
+    "titanium hull",
+    "hydrothermal vent",
+    "sonar ping",
+    "ballast tank",
+    "oxygen scrubbers",
+    "bioluminescent tendril",
+    "pressure gauge",
+    "depth sonar"
+  ],
+  "npcs": [
+    {
+      "name": "Chief Engineer Barnes",
+      "role": "sonar operator",
+      "format": "intercom"
+    },
+    {
+      "name": "Nautilus Automated Core",
+      "role": "submersible AI",
+      "format": "speaker"
+    }
+  ],
+  "dialogue_templates": [
+    "Barnes's voice cracks over the intercom: \"Sonar picked up a solid contact at two hundred meters below us... and it's climbing fast.\"",
+    "A warning klaxon sounds: \"{name} alerts hull stress at eighty-eight percent. Discontinue dive immediately.\""
+  ],
+  "sensory_details": [
+    "the cold drops of condensed moisture falling steadily onto the back of your neck",
+    "the deep, metallic ping of the active sonar echoing through the pressurized steel",
+    "ghostly ribbons of pale blue bioluminescence drifting past the thick acrylic viewport"
+  ],
+  "choice_templates": [
+    "Purge the forward ballast tank to arrest the descent",
+    "Direct the external searchlights toward the hydrothermal chimney",
+    "Seal the watertight hatch leading to the lower engine compartment",
+    "Re-calibrate the sonar hydrophone to isolate the anomalous acoustic ping"
+  ]
+}

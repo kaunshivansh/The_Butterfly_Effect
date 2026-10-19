@@ -7,6 +7,7 @@ or ornamental prose.
 """
 import random, re
 from story_data import *
+from lore_corpus.lore_manager import LoreManager
 
 # ── Narrative Architecture Classes ───────────────────────────────────────────
 
@@ -287,16 +288,36 @@ def _harvest_premise(opening):
     adjectives = []
     verbs = []
     
-    # Special manual classification overrides for test opening keywords
+    # Special manual classification overrides for premise keywords
     word_roles = {
         'forest': 'noun', 'sister': 'noun', 'city': 'noun', 'god': 'noun', 'border': 'noun',
-        'ruins': 'noun', 'cure': 'noun', 'documents': 'noun', 'rumors': 'noun',
+        'ruins': 'noun', 'cure': 'noun', 'documents': 'noun', 'rumors': 'noun', 'rumor': 'noun',
         'fighter': 'noun', 'cartographer': 'noun', 'sailor': 'noun', 'spy': 'noun', 'healer': 'noun',
+        'mars': 'noun', 'oxygen': 'noun', 'cat': 'noun', 'owner': 'noun', 'alley': 'noun',
+        'hacker': 'noun', 'corporation': 'noun', 'tokyo': 'noun', 'detective': 'noun',
+        'astronaut': 'noun', 'brother': 'noun', 'mother': 'noun', 'father': 'noun', 'friend': 'noun',
+        'relic': 'noun', 'artifact': 'noun', 'compass': 'noun', 'robot': 'noun', 'witch': 'noun',
+        'scientist': 'noun', 'pilot': 'noun', 'map': 'noun', 'maps': 'noun', 'street': 'noun',
+        'station': 'noun', 'starship': 'noun', 'ship': 'noun', 'subway': 'noun', 'evidence': 'noun',
+        'murder': 'noun', 'alien': 'noun', 'blade': 'noun', 'knife': 'noun', 'sword': 'noun',
+        'coven': 'noun', 'swamp': 'noun', 'ingredients': 'noun', 'ingredient': 'noun',
+        'temple': 'noun', 'vault': 'noun', 'cyberdeck': 'noun', 'mainframe': 'noun',
         'frost-bitten': 'adj', 'war-torn': 'adj', 'stolen': 'adj', 'stranded': 'adj', 'drowned': 'adj',
         'disgraced': 'adj', 'vanished': 'adj', 'plague': 'adj', 'inland': 'adj',
+        'rainy': 'adj', 'cyberpunk': 'adj', 'evil': 'adj', 'lost': 'adj', 'dark': 'adj',
+        'ancient': 'adj', 'red': 'adj', 'neon': 'adj', 'cold': 'adj', 'mysterious': 'adj',
+        'forbidden': 'adj', 'exiled': 'adj',
         'looking': 'verb', 'searching': 'verb', 'searches': 'verb', 'carrying': 'verb', 'crosses': 'verb',
-        'follows': 'verb', 'walks': 'verb', 'enters': 'verb'
+        'follows': 'verb', 'walks': 'verb', 'enters': 'verb', 'trying': 'verb', 'expose': 'verb',
+        'investigating': 'verb', 'seeking': 'verb', 'fleeing': 'verb', 'hunting': 'verb', 'tracking': 'verb',
+        'gathers': 'verb', 'gather': 'verb', 'gathering': 'verb', 'finds': 'verb', 'escapes': 'verb',
     }
+
+    known_nouns_with_s = {
+        'mars', 'ruins', 'documents', 'rumors', 'compass', 'grass', 'lens', 'glass', 'abyss',
+        'virus', 'status', 'gas', 'chaos', 'ingredients', 'supplies', 'herbs', 'charms', 'relics'
+    }
+    known_nouns_with_en = {'oxygen', 'alien', 'citizen', 'kitchen', 'garden', 'warden', 'raven', 'haven', 'omen', 'coven'}
     
     for w in words:
         w_clean = w.strip().lower()
@@ -307,9 +328,11 @@ def _harvest_premise(opening):
             if role == 'noun': nouns.append(w_clean)
             elif role == 'adj': adjectives.append(w_clean)
             elif role == 'verb': verbs.append(w_clean)
-        elif '-' in w_clean or w_clean.endswith(('ed', 'en')):
+        elif w_clean in known_nouns_with_s or w_clean in known_nouns_with_en:
+            nouns.append(w_clean)
+        elif '-' in w_clean or (w_clean.endswith(('ed', 'en')) and w_clean not in known_nouns_with_en):
             adjectives.append(w_clean)
-        elif w_clean.endswith(('ing', 'es', 's')) and not w_clean.endswith('ness'):
+        elif w_clean.endswith(('ing', 'es', 's')) and not w_clean.endswith(('ness', 'ss')) and w_clean not in known_nouns_with_s:
             verbs.append(w_clean)
         else:
             nouns.append(w_clean)
@@ -374,10 +397,12 @@ def _get_motif_text(state):
     if not motif_name:
         genre_motifs = {
             'fantasy': 'distant_bells',
-            'scifi': 'black_dust',
+            'scifi': 'cosmic_telemetry',
             'horror': 'broken_mirrors',
-            'mystery': 'water_marks',
-            'adventure': 'distant_bells'
+            'mystery': 'noir_shadows',
+            'adventure': 'water_marks',
+            'feline': 'feline_scent',
+            'cyberpunk': 'cyber_glitch'
         }
         motif_name = genre_motifs.get(state.get('genre', 'fantasy'), 'distant_bells')
         state['active_motif'] = motif_name
@@ -390,13 +415,19 @@ PERSON_NOUNS = {
     'sister', 'brother', 'father', 'mother', 'friend', 'god', 
     'fighter', 'cartographer', 'sailor', 'spy', 'healer',
     'wanderer', 'traveller', 'stranger', 'companion', 'ally',
-    'cousin', 'uncle', 'aunt', 'mentor', 'teacher'
+    'cousin', 'uncle', 'aunt', 'mentor', 'teacher',
+    'astronaut', 'hacker', 'detective', 'cat', 'dog', 'owner',
+    'scientist', 'witch', 'pilot', 'captain', 'child', 'partner',
+    'victim', 'killer', 'contact', 'agent', 'mercenary', 'scavenger'
 }
 
 PLACE_NOUNS = {
     'city', 'border', 'forest', 'ruins', 'camp', 'town', 'village',
     'spire', 'grove', 'temple', 'cathedral', 'lake', 'plateau', 
-    'canyon', 'shrine', 'thicket', 'wastes', 'bridge', 'cavern'
+    'canyon', 'shrine', 'thicket', 'wastes', 'bridge', 'cavern',
+    'mars', 'alley', 'street', 'station', 'crater', 'market', 'subway',
+    'docks', 'harbor', 'vault', 'sanctuary', 'tenement', 'lab', 'citadel',
+    'basin', 'quarter', 'outpost', 'colony', 'compound', 'corporation'
 }
 
 def _weave_premise_keywords(state, key, fallback):
@@ -459,19 +490,47 @@ def _npc_dialogue_line_adaptive(state, npc_record, ctx):
     """Adapt NPC dialogue lines based on player drives, character stats, and history."""
     dominant = state.get('dominant_behavior') or 'explore'
     name = npc_record['name'].split(',')[0]
+    genre = state.get('genre', 'fantasy')
     
-    stats = state.get('character', {}).get('stats', {})
-    
-    # Check for active rumors and comment on them occasionally
+    # 1. Check premise-matched lore pack dialogue templates
+    lore = LoreManager.detect_lore_pack(state.get('opening', '') + ' ' + genre)
+    if lore and lore.get('dialogue_templates'):
+        tmpl = random.choice(lore['dialogue_templates'])
+        try:
+            return tmpl.format(name=name, faction=ctx.get('faction', 'the authorities'), location=ctx.get('location', 'this sector'))
+        except Exception:
+            pass
+
+    # 2. Check for active rumors
     rumours = list(state.get('rumour_state', {}).values())
     if rumours and random.random() < 0.4:
         r = random.choice(rumours)
         r_text = r['text'] if isinstance(r, dict) else r
-        # Clean text for dialogue formatting
         r_clean = r_text.strip().rstrip('.')
-        return f"\"I've heard talk on the wind,\" {name} murmurs. \"They say that {r_clean}. Keep that in mind.\""
+        if r_clean.lower().startswith("they say that "):
+            r_clean = r_clean[14:]
+        elif r_clean.lower().startswith("they say "):
+            r_clean = r_clean[9:]
+        return f"\"I've heard talk on the frequency,\" {name} murmurs. \"They say that {r_clean}. Keep that in mind.\""
 
-    if stats.get('Lore', 0) >= 4 and random.random() < 0.5:
+    # 3. Genre-specific dialogue safeguards
+    if genre == 'scifi':
+        if dominant == 'aggressive':
+            return f"\"Life-support readouts are erratic,\" {name} warns over the comms. \"Conserve your thruster fuel.\""
+        if dominant == 'cautious':
+            return f"\"Keep your radio chatter minimal,\" {name} whispers over encrypted frequency. \"Atmospheric scans show pressure loss.\""
+        return f"\"Confirmed telemetry on your beacon,\" {name} transmits. \"Check the emergency reserves at the {ctx.get('location', 'module')}.\""
+
+    if genre == 'cyberpunk':
+        if dominant == 'aggressive':
+            return f"\"The network ICE is surging,\" {name} warns through the link. \"Pull your deck before they fry your chip.\""
+        return f"\"Keep your optical feed clear,\" {name} transmits. \"Surveillance drones are tracking this subnet.\""
+
+    if genre == 'feline':
+        return f"{name} watches with unblinking eyes, ears pivoting sharply toward the distant sounds of the alley."
+
+    stats = state.get('character', {}).get('stats', {})
+    if stats.get('Lore', 0) >= 4 and random.random() < 0.5 and genre == 'fantasy':
         return f"\"I see the ink of the Accord on your fingers,\" {name} says. \"You know what history we are repeating.\""
     if stats.get('Cunning', 0) >= 4 and dominant == 'cautious':
         return f"\"You tread like someone who has counted the exits already,\" {name} whispers. \"Keep that silence.\""
@@ -479,22 +538,24 @@ def _npc_dialogue_line_adaptive(state, npc_record, ctx):
     relationship = npc_record.get('relationship', 'neutral')
     if relationship == 'hostile':
         if dominant == 'aggressive':
-            return f"\"Lay your hand on that hilt, and the {ctx['faction']} will bury you at the {ctx['location']}.\""
+            return f"\"Step any closer, and the {ctx.get('faction', 'guards')} will finish you at the {ctx.get('location', 'gates')}.\""
         return f"\"I know what follows you,\" {name} says. \"Do not bring it near me.\""
         
     if relationship == 'ally':
         if dominant == 'social':
-            return f"\"The road has been harsh, but your name carries some warmth here,\" {name} says."
+            return f"\"The crossing has been harsh, but your name carries some warmth here,\" {name} says."
         return f"\"I kept one answer back for you,\" {name} says. \"It may cost us both.\""
         
     if dominant == 'aggressive':
-        return f"\"You carry old weather and new steel, traveller,\" {name} warns. \"The {ctx['faction']} are watching.\""
+        if genre == 'fantasy':
+            return f"\"You carry old weather and new steel, traveller,\" {name} warns. \"The {ctx.get('faction', 'patrol')} are watching.\""
+        return f"\"Your stance says you expect trouble,\" {name} says. \"Be careful what you provoke here.\""
     if dominant == 'social':
-        return f"\"The road is long, but a shared word is cheap enough,\" {name} says. \"What does your map claim?\""
+        return f"\"A shared word costs nothing,\" {name} says. \"What does your scouting report claim about the {ctx.get('location', 'area')}?\""
     if dominant == 'cautious':
-        return f"\"Speak softly. The {ctx['location']} repeats what it hears to the {ctx['faction']}.\""
+        return f"\"Keep low. The {ctx.get('location', 'place')} carries sound straight to {ctx.get('faction', 'observers')}.\""
         
-    return f"\"Tell me what you noticed at the {ctx['location']}, not what you hoped to find.\""
+    return f"\"Tell me what you noticed at the {ctx.get('location', 'area')}, not what you hoped to find.\""
 
 def _render_prose_template(state, template, ctx):
     """Render a dynamic sequence template to form a cohesive paragraph."""
@@ -691,6 +752,22 @@ def _generate_choices_premise_aware(state, beat, choices, ctx):
             elif beat == 'conflict':
                 custom_choice = f"Hold the line near the {loc} before they push you back from {phrased}"
                 
+    elif target_noun in ('jupiter', 'mars', 'europa', 'earth', 'saturn', 'neptune', 'venus'):
+        if beat in ('discovery', 'revelation'):
+            custom_choice = f"Scan orbital telemetry toward {target_noun.title()} to calculate drift"
+        elif beat == 'encounter':
+            custom_choice = f"Ask {npc_name} about radio relays linked to {target_noun.title()} orbit"
+        else:
+            custom_choice = f"Plot an emergency trajectory toward {target_noun.title()} orbital beacons"
+    elif target_noun in ('oxygen', 'air', 'tank', 'life support', 'scrubber'):
+        if beat in ('discovery', 'revelation'):
+            custom_choice = f"Check the suit telemetry gauge to verify remaining oxygen levels"
+        elif beat == 'obstacle':
+            custom_choice = f"Seal pressure valves at the {loc} before oxygen drops below critical threshold"
+        elif beat == 'encounter':
+            custom_choice = f"Inquire if {npc_name} has access to auxiliary oxygen tanks or power cells"
+        else:
+            custom_choice = f"Conserve breath and prioritize life-support repairs at the {loc}"
     elif category == 'object':
         if target_noun == 'cure':
             if beat == 'discovery':
@@ -750,6 +827,77 @@ REGION_FACTIONS = [
     'exiled banner-men', 'keepers of the old road',
 ]
 
+GENRE_FACTIONS = {
+    'fantasy': [
+        'soldiers in red', 'moth-cloaked pilgrims', 'the Toll Guild',
+        'gravewardens', 'salt smugglers', 'the Glass Abbey',
+        'exiled banner-men', 'keepers of the old road',
+    ],
+    'scifi': [
+        'the Orbital Syndicate', 'corporate enforcers', 'the Tech Guild',
+        'deep space miners', 'synthetic rebels', 'colony marshals',
+        'data smugglers', 'the Megacorp Security',
+    ],
+    'mystery': [
+        'the precinct detectives', 'the dockworkers union', 'the city syndicate',
+        'smugglers ring', 'corrupt city officials', 'private investigators',
+        'the harbor watch', 'the underground cartel',
+    ],
+    'horror': [
+        'the Ashen Cult', 'asylum wardens', 'the Whispering Circle',
+        "coroner's guard", 'the Hollow Flock', 'the Red Coven',
+        'graveyard scavengers', 'night vigilants',
+    ],
+    'adventure': [
+        'rival expedition', 'coastal scavengers', 'island cartel',
+        'tomb looters', 'frontier scouts', 'jungle guides',
+        'salvage crew', 'mercenary patrol',
+    ],
+}
+
+GENRE_REGION_PREFIXES = {
+    'scifi': ['Neo', 'Ares', 'Cyber', 'Nova', 'Titan', 'Apex', 'Aegis', 'Vektor', 'Nexus', 'Helios'],
+    'mystery': ['West', 'East', 'Cobble', 'Lower', 'High', 'Old', 'Black', 'River', 'Iron', 'Cross'],
+    'horror': ['Mourn', 'Gloom', 'Carrion', 'Ashen', 'Blight', 'Dread', 'Grim', 'Wither', 'Hollow', 'Silent'],
+    'adventure': ['Sunken', 'Emerald', 'Serpent', 'Golden', 'Skeleton', 'Wild', 'Coral', 'Thunder', 'Storm', 'Amber'],
+}
+
+GENRE_REGION_SUFFIXES = {
+    'scifi': [' Prime', ' Sector', ' Station', ' Basin', ' Reach', ' Bay', ' Complex', ' Sprawl', ' Hub', ' Colony'],
+    'mystery': [' Ward', ' Port', ' Hill', ' Docks', ' Street', ' District', ' Quarter', ' End', ' Alley', ' Gate'],
+    'horror': [' Barrow', ' Crypt', ' Trench', ' Moor', ' Vale', ' Asylum', ' Asylum', ' Hollow', ' Marsh', ' Yard'],
+    'adventure': [' Coast', ' Reach', ' Isle', ' Peak', ' Cay', ' Valley', ' Ridge', ' Narrows', ' Reef', ' Pass'],
+}
+
+GENRE_REGION_GEOGRAPHY = {
+    'scifi': [
+        'pressurized habitat domes under solar radiation',
+        'toxic rust plains strewn with decommissioned rovers',
+        'sprawling neon industrial sector connected by skywalks',
+        'subterranean mining facility cutting through frozen permafrost',
+        'tangled mag-lev conduits above the lower city',
+    ],
+    'mystery': [
+        'gaslit cobblestone alleys shrouded in cold river mist',
+        'industrial waterfront warehouses lined with rusting cranes',
+        'shadowed brick tenements with dripping iron fire escapes',
+        'crowded tramway thoroughfare between gray stone facades',
+        'fog-drenched railway yards echoing with distant whistles',
+    ],
+    'horror': [
+        'rotting woodlands where dead pines lean like broken teeth',
+        'sunken cemetery overgrown with black briars and stagnant pools',
+        'crumbling asylum perimeter flanked by rusted wrought-iron gates',
+        'fog-choked quarry lake where sound vanishes beneath the surface',
+    ],
+    'adventure': [
+        'overgrown jungle terraces winding along emerald river canyons',
+        'sun-scorched barrier islands ringed by crashing turquoise breakers',
+        'wind-swept sandstone ridges overlooking ancient canyon gorges',
+        'mist-veiled mountain passes flanked by sheer granite spires',
+    ],
+}
+
 REGION_PREFIXES = ['Veld', 'Mourn', 'Ash', 'Grey', 'Red', 'Elder', 'Hollow', 'Witch', 'Dawn', 'Fen']
 REGION_SUFFIXES = ['moor', 'reach', 'fen', 'barrow', 'mere', 'watch', 'ford', 'vale', 'march', 'wood']
 TIME_SLOTS = ['dawn', 'day', 'dusk', 'night']
@@ -766,7 +914,8 @@ PIVOT_TYPES = [
 PLAYER_ROLES = [
     'knight', 'exile', 'mercenary', 'scholar', 'thief', 'wanderer', 'healer',
     'spy', 'sailor', 'priest', 'cartographer', 'deserter', 'outcast',
-    'survivor', 'fighter',
+    'survivor', 'fighter', 'astronaut', 'hacker', 'detective', 'witch',
+    'cat', 'pilot', 'scientist', 'captain', 'ranger', 'assassin', 'engineer'
 ]
 
 ROLE_KEYWORDS = {
@@ -784,6 +933,17 @@ ROLE_KEYWORDS = {
     'outcast': ['shunned', 'spat', 'rejected', 'unwanted', 'scorned'],
     'survivor': ['survived', 'lived', 'last', 'remained', 'wreckage', 'ruins'],
     'fighter': ['fighter', 'soldier', 'warrior', 'brawler', 'guard'],
+    'astronaut': ['astronaut', 'cosmonaut', 'mars', 'orbit', 'spacesuit', 'oxygen', 'spacecraft'],
+    'hacker': ['hacker', 'cyberpunk', 'cyber', 'terminal', 'mainframe', 'megacorp', 'cyberdeck', 'netrunner'],
+    'detective': ['detective', 'investigator', 'inspector', 'police', 'private eye', 'noir', 'murder', 'case'],
+    'witch': ['witch', 'coven', 'cauldron', 'alchemy', 'herbalist', 'familiar'],
+    'cat': ['cat', 'feline', 'kitten', 'stray', 'paws', 'whiskers'],
+    'pilot': ['pilot', 'flight', 'cockpit', 'shuttle', 'plane'],
+    'scientist': ['scientist', 'researcher', 'laboratory', 'specimen', 'experiment'],
+    'captain': ['captain', 'skipper', 'commander', 'flagship'],
+    'ranger': ['ranger', 'tracker', 'woodsman', 'wildsman'],
+    'assassin': ['assassin', 'poisoner', 'hitman'],
+    'engineer': ['engineer', 'mechanic', 'machinist', 'technician'],
 }
 
 DRIVE_KEYWORDS = {
@@ -816,7 +976,7 @@ ROLE_CONTEXT = {
     'mercenary': "Your hand knows the old arithmetic: distance, witness, payment, escape.",
     'priest': "The broken sign at your throat keeps its chill, as if faith can become weather.",
     'knight': "The scraped place where your heraldry used to be still shines when rain touches it.",
-    'deserter': "You keep counting the seconds it would take pursuit to reach the treeline.",
+    'deserter': "You keep counting the seconds it would take pursuit to reach your position.",
     'spy': "The unused report lives behind your teeth, addressed to no one living.",
     'healer': "Your satchel smells of bitter herbs and old blood that no clean water finished removing.",
     'thief': "Every latch speaks a small language, and your fingers answer before pride can stop them.",
@@ -826,6 +986,42 @@ ROLE_CONTEXT = {
     'survivor': "You know the difference between silence and aftermath; this place is deciding which one it is.",
     'fighter': "Your body keeps its old ledgers in scar tissue and balance.",
     'wanderer': "The road does not care where you came from, and that is the first mercy it offers.",
+    'astronaut': "Your suit's HUD flickers with telemetry, every breath a metered ration against the void.",
+    'hacker': "The deck at your hip still carries the intrusion logs they would kill to erase.",
+    'detective': "Your notebook is full of questions that make powerful people reach for their lawyers or their guns.",
+    'witch': "The small charms sewn into your hem hum with quiet, forbidden warmth.",
+    'cat': "Your whiskers twitch at the faint vibrations of the ground, reading danger long before two-leggers notice.",
+    'pilot': "Your hands rest easily on the controls, attuned to the slightest shudder of the airframe.",
+    'scientist': "The data readouts are indisputable, no matter how much you wish they were an error.",
+    'captain': "The deck is yours, but every eye aboard is waiting to see where you steer.",
+    'ranger': "You can read the broken twigs and parted grass like a printed book.",
+    'assassin': "The weight of the cold steel in your sleeve is the only contract that matters.",
+    'engineer': "You listen to the mechanical hum around you, knowing exactly which bolt is under strain.",
+}
+
+ROLE_ITEM_OR_TOOL = {
+    'cartographer': 'map',
+    'scholar': 'field journal',
+    'hunter': 'trail marks',
+    'outcast': 'survival instincts',
+    'soldier': 'sidearm',
+    'healer': 'remedy kit',
+    'wanderer': 'travel staff',
+    'rebel': 'cipher notes',
+    'mystic': 'relic',
+    'thief': 'lockpicks',
+    'noble': 'signet seal',
+    'astronaut': 'suit telemetry',
+    'hacker': 'cyberdeck',
+    'detective': 'case notes',
+    'witch': 'talisman',
+    'cat': 'keen instincts',
+    'pilot': 'flight controls',
+    'scientist': 'sensor scanner',
+    'captain': 'logbook',
+    'ranger': 'scouting signs',
+    'assassin': 'hidden blade',
+    'engineer': 'diagnostic kit',
 }
 
 # ── Genre config ──────────────────────────────────────────────────────────────
@@ -846,6 +1042,8 @@ GENRE_LOCATIONS = {
         ('wailing canyon','deep red canyon with wind-carved formations'),
         ('moonwell shrine','circular stone shrine filled with silvery water'),
         ('iron thicket','forest of metallic trees with copper leaves'),
+        ('frostbitten forest','pine woods shrouded in rime and ancient silence'),
+        ('crumbling citadel','weathered stone fortress clinging to a jagged precipice'),
     ],
     'scifi': [
         ('derelict atrium','abandoned space station overgrown with alien flora'),
@@ -860,6 +1058,21 @@ GENRE_LOCATIONS = {
         ('void dock','empty docking bay open to stars'),
         ('signal tower','communication spire transmitting into deep space'),
         ('terraform scar','planet surface mid-transformation half alive'),
+        ('martian crater','red dust basin strewn with solar panels and rover tracks'),
+        ('pressurized biodome','modular habitat dome humming with life-support recyclers'),
+        ('sprawl alleyway','shadowed alley between towering arcologies glowing with neon advertisements'),
+        ('orbital airlock','heavy titanium airlock looking out into the silent black void'),
+        ('derelict starship','darkened corridor of an adrift vessel with emergency klaxons'),
+        ('icy moon surface','fractured cryo-ice plains glowing under Jupiter\'s immense marbled disc'),
+        ('cryo crater','frozen crater basin littered with lander wreckage and geothermal vents'),
+        ('subterranean ice cavern','vault of ancient extraterrestrial ice reflecting helmet telemetry'),
+    ],
+    'feline': [
+        ('market alley','narrow cobblestone alley flanked by fish crates and rain gutters'),
+        ('zinc rooftop','shadowed rooftop ledge overlooking chimneypots and misty streetlamps'),
+        ('cellar threshold','drafty cellar doorway smelling of dry sawdust and quiet darkness'),
+        ('butcher garden','overgrown garden behind the butcher shop with high brick walls'),
+        ('attic rafters','dust-mote filled attic timbers warm beneath the slate roof'),
     ],
     'horror': [
         ('meat corridor','fleshy organic tunnel with pulsing walls'),
@@ -886,6 +1099,10 @@ GENRE_LOCATIONS = {
         ('harbor warehouse','waterfront storage with suspicious cargo'),
         ('subway platform','empty late-night subway station'),
         ('observatory','hilltop observatory with broken telescope'),
+        ('rainy alley','narrow cobblestone alley with dripping fire escapes and steam vents'),
+        ('crime scene parlour','dusty room sealed behind police tape with overturned furniture'),
+        ('fog-drenched docks','waterfront pier where dark river water laps against rotting pilings'),
+        ('shadowed backroom','cramped office smelling of tobacco smoke and old paper'),
     ],
     'adventure': [
         ('cenote','deep natural sinkhole with turquoise water and vines'),
@@ -900,25 +1117,51 @@ GENRE_LOCATIONS = {
         ('crater lake','volcanic crater filled with emerald water'),
         ('mangrove tunnel','water passage through dense mangrove roots'),
         ('salt flat','endless white salt plain under brutal sun'),
+        ('overgrown jungle ruins','ancient stone terraces half-swallowed by emerald jungle canopy'),
+        ('windswept coastal cliff','rugged bluffs battered by crashing gray waves'),
+        ('sun-bleached dunes','sea of shifting orange sand beneath an unforgiving sun'),
     ],
 }
 
 GENRE_KEYWORDS = {
-    'fantasy': ['dragon','sword','magic','kingdom','elf','wizard','quest','castle','knight',
-                'sorcerer','enchanted','dungeon','goblin','dwarf','throne','spell','potion',
-                'ancient','rune','prophecy','forest','warrior','mage','mythical','arcane'],
-    'scifi':   ['space','ship','planet','robot','AI','laser','galaxy','station','alien',
-                'cyberpunk','android','neon','future','tech','colony','warp','quantum',
-                'hologram','cyborg','neural','plasma','orbit','starship','mech','synthetic'],
-    'horror':  ['dark','shadow','fear','blood','creature','nightmare','haunted','ghost',
-                'demon','cursed','asylum','cemetery','ritual','occult','madness','whisper',
-                'scream','decay','rot','dread','horror','flesh','bone','undead'],
-    'mystery': ['clue','detective','murder','suspect','evidence','secret','crime','witness',
-                'alibi','motive','case','conspiracy','solve','puzzle','code','hidden',
-                'truth','forensic','investigate','noir','heist'],
-    'adventure':['journey','explore','treasure','map','wilderness','mountain','ocean',
-                'island','pirate','expedition','survival','ruins','discover','cave',
-                'river','desert','jungle','compass','camp','climb','voyage'],
+    'feline': [
+        'cat','feline','kitten','paws','whiskers','claws','tail','alleycat','purr','meow','fur','prowling'
+    ],
+    'fantasy': [
+        'dragon','sword','magic','kingdom','elf','wizard','quest','castle','knight',
+        'sorcerer','enchanted','dungeon','goblin','dwarf','throne','spell','potion',
+        'ancient','rune','prophecy','forest','warrior','mage','mythical','arcane',
+        'blade','witch','coven','cauldron','paladin','altar','realm','beast','bow'
+    ],
+    'scifi': [
+        'space','ship','planet','robot','AI','laser','galaxy','station','alien',
+        'cyberpunk','android','neon','future','tech','colony','warp','quantum',
+        'hologram','cyborg','neural','plasma','orbit','starship','mech','synthetic',
+        'astronaut','cosmonaut','mars','moon','rover','rocket','shuttle','oxygen',
+        'vacuum','hacker','matrix','data','cyber','megacorp','corporation','tokyo',
+        'netrunner','genetic','clone','lab','drone','terminal','telemetry','cyberdeck',
+        'spaceship','interstellar','jupiter','europa'
+    ],
+    'horror': [
+        'dark','shadow','fear','blood','creature','nightmare','haunted','ghost',
+        'demon','cursed','asylum','cemetery','ritual','occult','madness','whisper',
+        'scream','decay','rot','dread','horror','flesh','bone','undead',
+        'terror','ghoul','zombie','infected','morgue','slaughter','monster','eerie',
+        'sinister','phantom','macabre','corpse','butcher'
+    ],
+    'mystery': [
+        'clue','detective','murder','suspect','evidence','secret','crime','witness',
+        'alibi','motive','case','conspiracy','solve','puzzle','code','hidden',
+        'truth','forensic','investigate','noir','heist','police','cop','inspector',
+        'victim','corpse','body','alley','rain','rainy','theft','stolen',
+        'owner','blackmail','private eye','revolver','fingerprint','interrogation'
+    ],
+    'adventure': [
+        'journey','explore','treasure','map','wilderness','mountain','ocean',
+        'island','pirate','expedition','survival','ruins','discover','cave',
+        'river','desert','jungle','compass','camp','climb','voyage','ancient',
+        'relic','artifact','tomb','safari','uncharted','canyon','frontier','sailor'
+    ],
 }
 
 # ── Anti-repetition ring buffer ───────────────────────────────────────────────
@@ -1059,6 +1302,29 @@ def _recast_to_second_person(opening):
     ]
     for pattern, replacement in replacements:
         text = re.sub(pattern, replacement, text, flags=re.I)
+
+    if not text.lower().startswith("you "):
+        m = re.match(r"^(a|an)\s+(.*)", text, flags=re.I)
+        if m:
+            art, rest = m.group(1), m.group(2)
+            rest = re.sub(r"\bsearches\b", "searching", rest, flags=re.I)
+            rest = re.sub(r"\bwalks\b", "walking", rest, flags=re.I)
+            rest = re.sub(r"\bfollows\b", "following", rest, flags=re.I)
+            rest = re.sub(r"\bcrosses\b", "crossing", rest, flags=re.I)
+            rest = re.sub(r"\blooks\b", "looking", rest, flags=re.I)
+            rest = re.sub(r"\bhunts\b", "hunting", rest, flags=re.I)
+            rest = re.sub(r"\btries\b", "trying", rest, flags=re.I)
+            rest = re.sub(r"\bopens\b", "opening", rest, flags=re.I)
+            rest = re.sub(r"\bcarries\b", "carrying", rest, flags=re.I)
+            rest = re.sub(r"\bgathers\b", "gathering", rest, flags=re.I)
+            rest = re.sub(r"\bseeks\b", "seeking", rest, flags=re.I)
+            rest = re.sub(r"\btravels\b", "travelling", rest, flags=re.I)
+            rest = re.sub(r"\bescapes\b", "escaping", rest, flags=re.I)
+            rest = re.sub(r"\bhis\b", "your", rest, flags=re.I)
+            rest = re.sub(r"\bher\b", "your", rest, flags=re.I)
+            rest = re.sub(r"\bits\b", "your", rest, flags=re.I)
+            text = f"You are {art.lower()} {rest}"
+
     text = re.sub(r'\s+', ' ', text).strip()
     if text and text[0].islower():
         text = text[0].upper() + text[1:]
@@ -1068,9 +1334,11 @@ def _identity_opening_sentence(state, opening):
     """Build the authored-feeling first sentence from player identity."""
     recast = _recast_to_second_person(opening)
     role = state.get('player_role', 'wanderer')
-    context = ROLE_CONTEXT.get(role, ROLE_CONTEXT['wanderer'])
+    context = ROLE_CONTEXT.get(role, ROLE_CONTEXT.get('wanderer', ''))
     wound = state.get('player_wound', 'what the road has not asked about yet')
-    return f"{recast}. {context} Beneath it all waits {wound}."
+    if wound and wound not in ('the old hurt', 'the old road', 'survival'):
+        return f"{recast}. {context} Beneath it all waits {wound}."
+    return f"{recast}. {context}"
 
 def _identity_callback_sentence(state):
     """Surface role, drive, or wound on structural turns."""
@@ -1198,13 +1466,26 @@ def _current_scene_object(state, action_terms, features, inventory_items):
     """Choose an object that is actually present, carried, or named by the action."""
     if action_terms:
         for term in action_terms:
-            if term in ('map', 'maps', 'milestone', 'ledger', 'door', 'gate', 'road', 'witness'):
+            if term in ('map', 'maps', 'milestone', 'ledger', 'door', 'gate', 'road', 'witness', 'airlock', 'terminal', 'console', 'deck', 'altar', 'relic'):
                 return term
     if state.get('player_role') == 'cartographer':
         return 'map'
     if inventory_items:
         return inventory_items[-1]
-    return features[0] if features else state.get('location', 'road')
+
+    adjective_blocklist = {
+        'orbital', 'rainy', 'neon', 'drowned', 'frost-bitten', 'war-torn',
+        'stolen', 'stranded', 'disgraced', 'vanished', 'plague', 'inland',
+        'evil', 'lost', 'dark', 'ancient', 'red', 'cold', 'mysterious',
+        'heavy', 'silent', 'black', 'narrow', 'deep', 'ruined', 'cracked',
+        'wet', 'broken', 'old', 'quiet', 'still', 'sour', 'thin', 'hard'
+    }
+    candidate_features = [f for f in features if f.lower() not in adjective_blocklist and len(f) > 2]
+    if candidate_features:
+        loc = state.get('location', '').lower()
+        distinct = [f for f in candidate_features if f.lower() != loc]
+        return distinct[0] if distinct else candidate_features[0]
+    return state.get('location', 'road').split()[-1]
 
 def _scene_anchor_sentence(ctx):
     """Introduce or re-anchor the concrete scene."""
@@ -1369,173 +1650,167 @@ def compose_paragraph(state, beat, intent, action):
 
 
 def _compose_richer_scene(state, ctx, beat, intent, action):
+    ctx = LoreManager.enrich_scene_context(state, ctx)
     loc = ctx['location']
-    desc = ctx['description']
+    desc = ctx.get('lore_environment') or ctx['description']
     feature = ctx['features'][0] if ctx['features'] else ctx['object']
     obj = ctx['object']
     weather = ctx['weather']
     faction = ctx['faction']
     region = ctx['region']
+    role = ctx.get('role', 'wanderer')
     action_text = (action or 'look around').strip().rstrip('.')
     turn = state.get('turn', 1)
+    phase = state.get('arc_phase', 'setup')
+
     phase_formats = {
         'setup': ['reflective', 'sensory_first', 'observational'],
         'rising': ['observational', 'action_first', 'tense'],
         'climax': ['tense', 'action_first'],
         'falling': ['action_first', 'reflective'],
     }
-    ctx['template_format'] = phase_formats.get(state.get('arc_phase', 'setup'), ['reflective'])[turn % len(phase_formats.get(state.get('arc_phase', 'setup'), ['reflective']))]
+    preferred = phase_formats.get(phase, ['reflective', 'sensory_first', 'observational'])
+    ctx['template_format'] = preferred[turn % len(preferred)]
 
     openings = {
         'explore': [
-            f"You test the ground at the {loc} before trusting it with your weight.",
-            f"You let your attention travel across the {loc}, refusing to accept its first explanation.",
-            f"The {loc} gives you a handful of facts: {desc}, {feature}, and the sound of something moving out of sight.",
+            f"You scan the immediate ground at the {loc}, parsing {desc} for details that don't match the background.",
+            f"You test your footing at the {loc}, letting your senses adjust to the shifting {weather}.",
+            f"Under the {weather}, the {loc} presents a sharp contrast: {desc}, dominated by {feature}.",
+            f"You move cautiously through the {loc}, refusing to accept the quiet at face value.",
         ],
         'cautious': [
-            f"You slow at the {loc} and count the places where a watcher could stand.",
-            f"Nothing in the {loc} is harmless merely because it is quiet.",
-            f"You take the longer look, measuring {feature} against the exits and the weather.",
+            f"Keeping to the shadows of the {loc}, you track the sightlines around {feature}.",
+            f"You advance with measured steps across {desc}, checking for observers or concealed ambushes.",
+            f"You hold still at the {loc}, letting the ambient sounds of {weather} filter past your focus.",
         ],
         'social': [
-            f"Your words carry through the {loc} farther than you intended.",
-            f"You make the first move with language, leaving the {loc} to decide whether it will answer.",
-            f"Someone near the {loc} has been waiting for a question like yours.",
+            f"Your voice cuts through the {weather} around the {loc}, seeking an answer from whoever watches.",
+            f"You step into the open near {feature}, projecting deliberate calm across the {loc}.",
+            f"You make your presence known at the {loc}, reading the space for how {faction} responds.",
         ],
         'aggressive': [
-            f"You act before the {loc} can turn your hesitation into an invitation.",
-            f"At the {loc}, restraint becomes a decision rather than a default.",
-            f"You put pressure on {feature} and listen for what breaks first.",
+            f"You seize the initiative at the {loc}, putting direct pressure on {feature}.",
+            f"Restraint gives way to decisive action as you take commanding position at the {loc}.",
+            f"You close the distance across {desc}, daring anything in the {loc} to bar your path.",
         ],
         'move': [
-            f"You leave the safest part of the {loc} behind and follow the route that costs you something.",
-            f"The next stretch begins where the {loc} stops pretending to be familiar.",
-            f"You move through {desc}, keeping one landmark between yourself and the open ground.",
+            f"Leaving the immediate threshold of the {loc} behind, you push into the open line across {desc}.",
+            f"You stay in motion through {desc}, keeping {feature} between yourself and potential pursuit.",
+            f"The route through the {loc} narrows, carrying you forward under the {weather}.",
         ],
         'use_item': [
-            f"You bring {obj} into the moment and give it one honest chance to matter.",
-            f"The thing in your hands changes the shape of the problem at the {loc}.",
-            f"You use {obj} against the scene rather than against your fear of it.",
+            f"You bring your {obj} to bear at the {loc}, using its specific properties against {feature}.",
+            f"The weight of the {obj} in your grip changes how you approach the problem at the {loc}.",
+            f"Putting your gear to practical use, you employ the {obj} to clear a path through {desc}.",
         ],
     }
-    beat_lines = {
-        'encounter': f"A stranger steps into view near the {feature}; their attention settles on what you carry before it reaches your face.",
-        'obstacle': f"The route is blocked by a fresh complication at the {feature}. It was placed, not formed, and someone expected you to arrive.",
-        'revelation': f"One detail refuses to fit: the {feature} bears a mark made recently, in a hand that knew the local customs.",
-        'transition': f"Beyond the {loc}, a route toward {region} opens between the weather and the patrol lines.",
-        'conflict': f"The danger resolves into movement near the {feature}; you have seconds to decide whether position or force will save you.",
-        'rest': f"You find a brief shelter in the {loc}, long enough to count your supplies and hear your own breathing.",
-        'discovery': f"At the {feature}, you find a practical clue: the place has been used recently, and not by accident.",
-    }
-    hooks = [
-        f"The {faction} would care about this, which means you should decide what to hide before you decide what to do.",
-        f"Rain gathers over {desc}; whatever made the mark may return before it washes away.",
-        f"You can follow the clue, test it, or leave it for someone less careful.",
-        f"The answer is small enough to miss and important enough to change the next mile.",
-    ]
-    chosen = random.choice(openings.get(intent, openings['explore']))
-    line = beat_lines.get(beat, beat_lines['discovery'])
-    hook = hooks[(turn + len(state.get('events', []))) % len(hooks)]
+
+    concise_action = (action or 'look around').strip().rstrip('.')
+    concise_action = re.sub(r'^(to\s+|you\s+)', '', concise_action.lower())
+    if len(concise_action) > 35:
+        words = concise_action.split()
+        concise_action = ' '.join(words[:4])
+    concise_action = re.sub(r'\s+(at|in|on|with|to|from|by|for|of|the|a|an)\s*$', '', concise_action)
+
     action_variants = [
-        f"Your choice — {action_text.lower()} — changes what the scene is willing to reveal.",
-        f"By choosing to {action_text.lower()}, you give the moment a direction it did not have before.",
-        f"The decision to {action_text.lower()} costs you the safety of waiting and buys you one clearer fact.",
-        f"You commit to {action_text.lower()}; somewhere nearby, the world adjusts its answer.",
+        f"Your decision to {concise_action} shifts the immediate momentum at the {loc}.",
+        f"Carrying out your intent to {concise_action}, you force the scene to yield a concrete response.",
+        f"As you {concise_action}, an overlooked detail near {feature} comes into sharp focus.",
+        f"You commit to {concise_action}; the tension around {feature} adjusts in your favor.",
+        f"Taking the initiative to {concise_action}, you establish control over the immediate ground.",
     ]
+
+    beat_lines = {
+        'encounter': f"Movement catches your eye near the {feature}: someone steps into your awareness.",
+        'obstacle': f"A deliberate blockage at the {feature} arrests your progress; someone clearly wanted this route barred.",
+        'revelation': f"A telling sign near {feature} clarifies the situation: fresh marks point to recent activity by {faction}.",
+        'transition': f"Beyond the {loc}, a viable thoroughfare toward {region} opens through the {weather}.",
+        'conflict': f"Hostile intent flares around the {feature}; you have mere seconds to defend your position against {faction}.",
+        'rest': f"A moment of respite settles over the {loc}, giving you quiet shelter beneath {feature}.",
+        'discovery': f"At the base of the {feature}, you uncover a tangible clue left by a previous crossing.",
+    }
+
+    chosen = random.choice(openings.get(intent, openings['explore']))
     action_line = action_variants[turn % len(action_variants)]
+    line = beat_lines.get(beat, beat_lines['discovery'])
     if beat == 'encounter' and ctx.get('npc'):
         npc = ctx['npc']
-        line = f"{npc['name']} steps into view near the {feature}. {_npc_dialogue_line_adaptive(state, npc, ctx)}"
-    motif = _get_motif_text(state)
+        genre = state.get('genre', 'fantasy')
+        comm_mode = ctx.get('comm_mode') or ('radio_comms' if genre == 'scifi' else 'feline_sensory' if genre == 'feline' else 'cyber_link' if genre == 'cyberpunk' else 'spoken')
+        dialogue = _npc_dialogue_line_adaptive(state, npc, ctx)
+        if comm_mode == 'radio_comms' or genre == 'scifi':
+            line = f"A signal transmission from {npc['name']} breaks through on your helmet receiver. {dialogue}"
+        elif comm_mode == 'feline_sensory' or genre == 'feline':
+            line = f"A sudden movement draws your ears back: {npc['name']} watches from nearby. {dialogue}"
+        elif comm_mode == 'cyber_link' or genre == 'cyberpunk':
+            line = f"An encrypted neural packet pings from {npc['name']}. {dialogue}"
+        else:
+            line = f"{npc['name']} steps into view near the {feature}. {dialogue}"
+
+    # Weave premise naturally and atmospherically
     harvest = state.get('opening_keywords_harvest', {})
-    premise_terms = [t for t in harvest.get('nouns', []) + harvest.get('verbs', []) if len(t) > 3][:4]
+    nouns = harvest.get('nouns', [])
+    target_nouns = [n for n in nouns if n != role]
+    target = target_nouns[-1] if target_nouns else (nouns[0] if nouns else '')
     premise_anchor = ''
-    if premise_terms:
-        joined = ', '.join(premise_terms[:3])
-        premise_anchor = f"The premise you carried into this place remains active: {joined} is not background here; it is pressure."
-    parts = [chosen, action_line, line, premise_anchor, motif, hook]
-    pending = state.pop('_pending_item_use', None)
-    if pending:
-        parts.insert(2, pending)
-    return _shape_scene_prose(state, ' '.join(_clean_sentence(p) for p in parts), state.get('arc_phase', 'setup'))
+    if target:
+        is_proper = target.lower() in ('jupiter', 'mars', 'europa', 'earth', 'tokyo', 'london', 'venus', 'saturn', 'neptune')
+        if target.lower() == 'orbit':
+            premise_anchor = f"The unforgiving physics of orbital trajectory sharpen your resolve in the quiet of the {loc}."
+        elif is_proper:
+            premise_anchor = f"The thought of {target.title()} sharpens your resolve in the quiet of the {loc}."
+        elif target in PERSON_NOUNS:
+            premise_anchor = f"The search for {PREMISE_NOUN_PHRASING.get(target, (f'your {target}',))[0]} remains your guiding compass."
+        elif target in PLACE_NOUNS:
+            premise_anchor = f"Every step through the {loc} brings you closer to {PREMISE_NOUN_PHRASING.get(target, (f'the {target}',))[0]}."
+        elif target in ('cure', 'oxygen', 'food', 'water', 'supplies'):
+            premise_anchor = f"The urgent necessity of {PREMISE_NOUN_PHRASING.get(target, (f'the {target}',))[0]} drives your every choice."
+        else:
+            phrased = PREMISE_NOUN_PHRASING.get(target, (f"the {target}",))[0]
+            premise_anchor = f"The thought of {phrased} sharpens your resolve in the quiet of the {loc}."
 
-    phase = state.get('arc_phase', 'setup')
-    if phase == 'setup':
-        preferred = ['reflective', 'sensory_first', 'observational']
-    elif phase == 'rising':
-        preferred = ['observational', 'action_first', 'tense']
-    elif phase == 'climax':
-        preferred = ['tense', 'action_first']
-    elif phase == 'falling':
-        preferred = ['action_first', 'reflective']
-    else:
-        preferred = ['reflective', 'action_first', 'tense', 'observational', 'sensory_first']
+    motif = _get_motif_text(state)
+    hooks = [
+        f"The {faction} would care about what happened here; your next move must be deliberate.",
+        f"The {weather} continues to shift over {desc}, and whatever waits in {region} will not wait forever.",
+        f"The path ahead offers both risk and opportunity; you must choose how to press the advantage.",
+        f"The silence around the {loc} is temporary, and the consequences of your choice are already setting in.",
+    ]
+    hook = hooks[(turn + len(state.get('events', []))) % len(hooks)]
 
-    templates = PROSE_TEMPLATES.get(beat, [])
-    if not templates:
-        templates = [{
-            'format': "sensory_first",
-            'intro': "Under the {weather} of the {location}, a quiet detail presents itself. {motif_text}",
-            'body': "Your decision to {action_verb} leads you directly to {object_name}. The {location_noun} feels less like a new path and more like a line drawn by someone who knew you were coming.",
-            'beat': "Here, the {features[0]} has been left exposed, bearing the markings of the {faction}.",
-            'hook': "The next useful truth remains buried somewhere in this {location_noun}."
-        }]
-
-    matching = [t for t in templates if t.get('format') in preferred]
-    selected_template = random.choice(matching) if matching else random.choice(templates)
-    ctx['template_format'] = selected_template.get('format')
-
-    base_prose = _render_prose_template(state, selected_template, ctx)
-
-    extra_sentences = []
+    parts = [chosen, action_line, line]
+    if premise_anchor:
+        parts.append(premise_anchor)
+    parts.append(motif)
 
     pending_item = state.pop('_pending_item_use', None)
     if pending_item:
-        extra_sentences.append(pending_item)
+        parts.insert(2, pending_item)
 
     stat_note = _stat_pressure_sentence(state, intent, beat)
     if stat_note:
-        extra_sentences.append(stat_note)
+        parts.append(stat_note)
 
-    for pending_key in ('_pending_consequence_lines',):
-        for pending_line in state.pop(pending_key, []) or []:
-            extra_sentences.append(pending_line)
+    for pending_line in state.pop('_pending_consequence_lines', []) or []:
+        parts.append(pending_line)
 
     pivot_line = state.pop('_pending_pivot_line', None)
     if pivot_line:
-        extra_sentences.append(pivot_line)
+        parts.append(pivot_line)
 
     ambient_line = state.pop('_pending_ambient_line', None)
     if ambient_line:
-        extra_sentences.append(f"At the {ctx['location']}, {ambient_line[0].lower() + ambient_line[1:]}")
+        parts.append(f"At the {loc}, {ambient_line[0].lower() + ambient_line[1:]}")
 
     identity_note = _identity_callback_sentence(state)
     if identity_note:
-        extra_sentences.append(identity_note)
+        parts.append(identity_note)
 
-    lore_note = _lore_bias_sentence(state)
-    if lore_note:
-        extra_sentences.append(lore_note)
+    parts.append(hook)
 
-    grounded_world = _grounded_world_sentence(state, ctx)
-    if grounded_world:
-        extra_sentences.append(grounded_world)
-
-    # Randomize the order of the constituent extra details to prevent formulaic flow
-    random.shuffle(extra_sentences)
-
-    if extra_sentences:
-        story = base_prose + " " + " ".join(extra_sentences)
-    else:
-        story = base_prose
-
-    # Clean and split properly
-    cleaned = [_clean_sentence(s) for s in _split_sentences(story) if s]
-    story_cleaned = ' '.join(cleaned)
-    if story_cleaned and story_cleaned[-1] not in '.!?"\'':
-        story_cleaned += '.'
-
-    return _shape_scene_prose(state, story_cleaned, phase)
+    story = ' '.join(_clean_sentence(p) for p in parts if p)
+    return _shape_scene_prose(state, story, phase)
 
 
 # ── Choice generator ─────────────────────────────────────────────────────────
@@ -1550,19 +1825,23 @@ def generate_choices(state, beat):
     faction = ctx['faction']
     region = ctx['region']
     npc = ctx.get('npc')
+    tool = ROLE_ITEM_OR_TOOL.get(role, 'map' if role == 'cartographer' else 'instincts')
 
     choices = []
     if beat == 'encounter' and npc:
         choices.extend([
             f"Ask {npc['name']} what {faction} wants at the {loc}",
-            f"Watch {npc['name'].split(',')[0]} while you compare their story to your map",
+            f"Watch {npc['name'].split(',')[0]} while you compare their story to your {tool}",
             f"Offer {npc['name'].split(',')[0]} a cautious truth about the {loc}",
         ])
     elif beat == 'obstacle':
+        third_choice = (f"Leave a map mark at the {loc} before forcing passage"
+                        if role == 'cartographer'
+                        else f"Use your {tool} to find a safer way through the {loc}")
         choices.extend([
             f"Measure the blocked line through the {loc} like a {role}",
             f"Search the {obj} for a safer way past the {loc}",
-            f"Leave a map mark at the {loc} before forcing passage",
+            third_choice,
         ])
     elif beat == 'revelation':
         choices.extend([
@@ -1571,27 +1850,39 @@ def generate_choices(state, beat):
             f"Compare the {loc} against the mistake that still wounds you",
         ])
     elif beat == 'transition':
+        second_choice = (f"Check whether your map lies about the next stretch of {region}"
+                         if role == 'cartographer'
+                         else f"Check what your {tool} reveals about the next stretch of {region}")
         choices.extend([
             f"Mark the road out of the {loc} before you follow it",
-            f"Check whether your map lies about the next stretch of {region}",
+            second_choice,
             f"Leave a warning at the {loc} for anyone following your line",
         ])
     elif beat == 'conflict':
+        third_choice = (f"Break away through the part of the {loc} your map still explains"
+                        if role == 'cartographer'
+                        else f"Break away through the part of the {loc} your {tool} guides you through")
         choices.extend([
             f"Use the {obj} at the {loc} before {faction} can close in",
             f"Hold the line at the {loc} and make your next move visible",
-            f"Break away through the part of the {loc} your map still explains",
+            third_choice,
         ])
     elif beat == 'rest':
+        first_choice = (f"Update your map of the {loc} while you still have quiet"
+                        if role == 'cartographer'
+                        else f"Rely on your {tool} to secure the {loc} while you still have quiet")
         choices.extend([
-            f"Update your map of the {loc} while you still have quiet",
+            first_choice,
             f"Count supplies at the {loc} and decide what can be spared",
             f"Listen for what {faction} are saying about you in {region}",
         ])
     else:
+        second_choice = (f"Compare the {loc} against the map you no longer trust"
+                         if role == 'cartographer'
+                         else f"Scout the {loc} through the lens of a {role}")
         choices.extend([
             f"Study the {obj} at the {loc} until {obj_gives} a usable fact",
-            f"Compare the {loc} against the map you no longer trust",
+            second_choice,
             f"Ask what {faction} would gain by hiding this part of {region}",
         ])
 
@@ -1661,6 +1952,56 @@ def _role_specific_choice(state, beat):
             'obstacle': f"Let the lock at the {location} teach you who built the fear around it",
             'encounter': f"Watch {npc}'s pockets while they watch your face",
             'discovery': f"Find what everyone at the {location} assumes is already gone",
+        },
+        'astronaut': {
+            'discovery': f"Scan the {location} for life support readings or structural integrity",
+            'obstacle': f"Bypass the hazard at the {location} before suit reserves drop",
+            'revelation': f"Transmit anomalous findings from the {location} across open frequencies",
+        },
+        'hacker': {
+            'discovery': f"Tap into the local subnet near the {location} for encrypted nodes",
+            'obstacle': f"Override the security lock at the {location} with your deck",
+            'revelation': f"Trace the origin of the rogue protocol discovered at the {location}",
+        },
+        'detective': {
+            'discovery': f"Dust the {location} for latent prints or overlooked evidence",
+            'encounter': f"Press {npc} on their alibi regarding the {location}",
+            'revelation': f"Piece together the timeline that connects {region} to the crime",
+        },
+        'cat': {
+            'discovery': f"Sniff around the {location} for familiar scents or warmth",
+            'obstacle': f"Leap quietly over the obstacle at the {location}",
+            'rest': f"Curl into a hidden nook at the {location} and listen attentively",
+        },
+        'pilot': {
+            'discovery': f"Survey the terrain at the {location} for emergency landing clearance",
+            'obstacle': f"Navigate the hazardous passage at the {location} with steady hands",
+            'revelation': f"Recalibrate navigation vectors against landmarks in {region}",
+        },
+        'witch': {
+            'discovery': f"Read the subtle omens lingering around the {location}",
+            'encounter': f"Whisper a binding verse to see if {npc} recoils",
+            'rest': f"Brew a calming infusion at the {location} using gathered herbs",
+        },
+        'scientist': {
+            'discovery': f"Collect environmental samples from the {location} for analysis",
+            'obstacle': f"Formulate a rational method to circumvent the hazard at the {location}",
+            'revelation': f"Synthesize your notes on the anomaly discovered in {region}",
+        },
+        'ranger': {
+            'discovery': f"Track the freshest footprints crossing the {location}",
+            'obstacle': f"Find a concealed stalker's trail around the {location}",
+            'transition': f"Mark the terrain ahead from the highest vantage near the {location}",
+        },
+        'assassin': {
+            'discovery': f"Identify all blind spots and lethal angles overlooking the {location}",
+            'encounter': f"Position yourself behind {npc}'s guard before speaking",
+            'conflict': f"Strike swiftly from the shadows of the {location}",
+        },
+        'engineer': {
+            'discovery': f"Inspect the mechanical conduits and joints near the {location}",
+            'obstacle': f"Rig a makeshift bypass for the broken machinery at the {location}",
+            'rest': f"Service and tune your gear beside the shelter of the {location}",
         },
     }
     return table.get(role, {}).get(beat)
@@ -1863,6 +2204,17 @@ def _stats_for_identity(identity):
         'sailor': {'Vitality': 1, 'Resolve': 1, 'Cunning': 1},
         'survivor': {'Vitality': 1, 'Resolve': 2},
         'outcast': {'Cunning': 1, 'Resolve': 1, 'Presence': 1},
+        'astronaut': {'Lore': 2, 'Resolve': 1},
+        'hacker': {'Cunning': 2, 'Lore': 1},
+        'detective': {'Cunning': 1, 'Lore': 1, 'Presence': 1},
+        'witch': {'Lore': 2, 'Resolve': 1},
+        'cat': {'Cunning': 2, 'Vitality': 1},
+        'pilot': {'Resolve': 1, 'Cunning': 1, 'Vitality': 1},
+        'scientist': {'Lore': 2, 'Resolve': 1},
+        'captain': {'Presence': 2, 'Resolve': 1},
+        'ranger': {'Vitality': 1, 'Cunning': 1, 'Resolve': 1},
+        'assassin': {'Cunning': 2, 'Strength': 1},
+        'engineer': {'Lore': 1, 'Cunning': 1, 'Resolve': 1},
     }
     drive_bonuses = {
         'atonement': {'Resolve': 1, 'Lore': 1},
@@ -1900,6 +2252,17 @@ def _character_name_for_identity(identity):
         'outcast': 'The Marked Outcast',
         'sailor': 'The Inland Sailor',
         'exile': 'The Banished Roadwarden',
+        'astronaut': 'The Void Walker',
+        'hacker': 'The Ghost in the Grid',
+        'detective': 'The Rain-Soaked Investigator',
+        'witch': 'The Hearth-Bound Witch',
+        'cat': 'The Stray Wanderer',
+        'pilot': 'The Grounded Pilot',
+        'scientist': 'The Field Researcher',
+        'captain': 'The Stranded Captain',
+        'ranger': 'The Border Ranger',
+        'assassin': 'The Shadow Hand',
+        'engineer': 'The Machine Smith',
     }
     return names.get(role, 'The Weathered Roadwarden')
 
@@ -1919,10 +2282,15 @@ def _default_character(new_game=False, identity=None):
 
 def _generate_world(genre, opening):
     """Generate a persistent small world of named regions."""
+    prefixes = GENRE_REGION_PREFIXES.get(genre, REGION_PREFIXES)
+    suffixes = GENRE_REGION_SUFFIXES.get(genre, REGION_SUFFIXES)
+    geographies = GENRE_REGION_GEOGRAPHY.get(genre, REGION_GEOGRAPHY)
+    factions = GENRE_FACTIONS.get(genre, REGION_FACTIONS)
+
     count = random.randint(3, 5)
     names = []
     for _ in range(count * 2):
-        name = random.choice(REGION_PREFIXES) + random.choice(REGION_SUFFIXES)
+        name = random.choice(prefixes) + random.choice(suffixes)
         name = name[0].upper() + name[1:]
         if name not in names:
             names.append(name)
@@ -1932,8 +2300,8 @@ def _generate_world(genre, opening):
     for name in names:
         regions.append({
             'name': name,
-            'geography': random.choice(REGION_GEOGRAPHY),
-            'faction': random.choice(REGION_FACTIONS),
+            'geography': random.choice(geographies),
+            'faction': random.choice(factions),
             'truth': random.choice(['watched', 'starving', 'rebelling', 'haunted', 'sealed', 'for sale']),
         })
     return {
@@ -1952,9 +2320,11 @@ def _world_name(opening, names):
     keywords = _extract_keywords(opening)
     if keywords:
         root = keywords[0].capitalize()
+        if any(w in (opening or '').lower() for w in ('space', 'mars', 'cyber', 'neon', 'orbit', 'colony', 'station')):
+            return f"The {root} Sector"
         return f"The {root} Marches"
     if names:
-        return f"The {names[0]} Road"
+        return f"The {names[0]} Reach"
     return "The Unmapped Road"
 
 
@@ -2257,10 +2627,37 @@ def _get_or_create_npc_record(state, name=None):
         return registry[name]
     if not name:
         used = set(registry)
-        available = [n for n in NPC_PROPER_NAMES if not any(existing.startswith(n) for existing in used)]
-        proper = _pick(available or NPC_PROPER_NAMES, 'npc_proper')
-        title = _pick(NPC_NAMES, 'npc_name')
-        name = f"{proper}, {title}"
+        genre = state.get('genre', 'fantasy')
+        lore = LoreManager.detect_lore_pack(state.get('opening', '') + ' ' + genre)
+        if lore and lore.get('npcs'):
+            chosen = random.choice(lore['npcs'])
+            name = f"{chosen['name']}, {chosen.get('role', 'contact')}"
+        elif genre == 'scifi':
+            sci_names = ['Commander Hayes', 'Dr. Vane', 'Officer Chen', 'Relay Beacon Echo', 'Pilot Thorne', 'Unit 07 Android']
+            sci_titles = ['the flight lead', 'the survivor', 'the engineer', 'the automated relay', 'the shuttle pilot']
+            available = [n for n in sci_names if not any(existing.startswith(n) for existing in used)]
+            proper = random.choice(available or sci_names)
+            title = random.choice(sci_titles)
+            name = f"{proper}, {title}"
+        elif genre == 'feline':
+            cat_names = ['Barnaby', 'Pip', 'Buster', 'Madame Rosa', 'Sooty', 'Old Tom']
+            cat_titles = ['the ginger tomcat', 'the alley kitten', 'the yard dog', 'the fishmonger', 'the roof prowler']
+            available = [n for n in cat_names if not any(existing.startswith(n) for existing in used)]
+            proper = random.choice(available or cat_names)
+            title = random.choice(cat_titles)
+            name = f"{proper}, {title}"
+        elif genre == 'cyberpunk':
+            cyber_names = ['Cipher', 'Doc Kessler', 'Vector', 'Chrome-Eye', 'Siren']
+            cyber_titles = ['the netrunner', 'the ripperdoc', 'the data courier', 'the street enforcer']
+            available = [n for n in cyber_names if not any(existing.startswith(n) for existing in used)]
+            proper = random.choice(available or cyber_names)
+            title = random.choice(cyber_titles)
+            name = f"{proper}, {title}"
+        else:
+            available = [n for n in NPC_PROPER_NAMES if not any(existing.startswith(n) for existing in used)]
+            proper = _pick(available or NPC_PROPER_NAMES, 'npc_proper')
+            title = _pick(NPC_NAMES, 'npc_name')
+            name = f"{proper}, {title}"
     archetypes = globals().get('NPC_ARCHETYPES', ['road witness', 'border scout', 'local guide'])
     secrets = globals().get('NPC_SECRETS', ['they know more than they can safely say'])
     wants = globals().get('NPC_WANTS', ['to leave with their name intact'])
@@ -2697,23 +3094,55 @@ def _panel_payload(state):
 
 
 def _build_image_prompt(state, action=None):
-    """Build a contextual image search prompt for the current scene."""
+    """Build a vivid, focused image prompt for the current scene."""
     state = _ensure_state_defaults(state)
     ctx = state.get('current_scene') or _scene_context(state, beat=state.get('last_beat'), intent='explore', action=action)
-    pieces = [
-        ctx.get('location', ''),
-        ctx.get('description', ''),
-        state.get('last_npc', ''),
-        action or state.get('last_action', ''),
-        ctx.get('object', ''),
-        ctx.get('faction', ''),
-        state.get('genre', 'fantasy'),
-        state.get('emotion', 'wonder'),
-        state.get('world', {}).get('weather', ''),
-        state.get('world', {}).get('time', {}).get('slot', ''),
-        'fantasy digital art atmospheric',
-    ]
-    return ' '.join(str(p).strip() for p in pieces if p).strip()
+
+    role = state.get('player_role', 'wanderer')
+    loc = ctx.get('location', '')
+    desc = ctx.get('description', '')
+    genre = state.get('genre', 'fantasy')
+    weather = state.get('world', {}).get('weather', 'mist')
+    time_slot = state.get('world', {}).get('time', {}).get('slot', 'dusk')
+
+    role_visuals = {
+        'cat': 'a sleek solitary stray cat with watchful eyes',
+        'astronaut': 'a lone astronaut in an EVA spacesuit with reflective helmet visor',
+        'hacker': 'a cyberpunk netrunner with cybernetic implants and portable data deck',
+        'detective': 'a brooding noir detective in a rain-drenched trench coat',
+        'cartographer': 'a weathered cartographer holding an ancient unrolled parchment map',
+        'witch': 'a solitary mysterious witch with dark robes and an herb satchel',
+        'pilot': 'a grounded pilot in flight gear with leather jacket',
+        'scientist': 'a field researcher with portable sensor scanner and analytical gear',
+        'fighter': 'a battle-scarred warrior in worn leather and steel armor',
+        'scholar': 'a solitary scholar in ink-stained travel robes',
+        'thief': 'a nimble hooded rogue in shadowed leather gear',
+        'priest': 'a solitary pilgrim wearing a worn sacred pendant',
+        'sailor': 'a weathered sailor carrying sea-worn travel gear',
+        'ranger': 'a hooded frontier scout with bow and tracking gear',
+        'engineer': 'a resourceful technician with tool belt and goggles',
+    }
+    subject = role_visuals.get(role, f"a lone {role}")
+
+    setting_parts = []
+    if loc:
+        setting_parts.append(loc)
+    if desc and desc != loc:
+        setting_parts.append(desc)
+    setting_str = ', '.join(setting_parts)
+
+    genre_styles = {
+        'scifi': 'cinematic sci-fi concept art, atmospheric neon and volumetric lighting, photorealistic digital painting, 8k',
+        'mystery': 'atmospheric film noir digital art, moody cinematic lighting, dramatic shadows, rain-slick surfaces, 8k',
+        'fantasy': 'dark fantasy concept art, atmospheric oil painting style, moody cinematic lighting, intricate details, trending on artstation',
+        'horror': 'atmospheric dark gothic horror concept art, eerie mist, deep shadows, cinematic ominous lighting, 8k',
+        'adventure': 'vibrant cinematic adventure concept art, dramatic composition, rich environmental detail, 8k',
+        'feline': 'cinematic atmospheric digital painting of a feline exploring, moody volumetric lighting, rich detail, 8k',
+    }
+    style = genre_styles.get(genre, genre_styles['fantasy'])
+
+    prompt = f"{subject} at {setting_str}, {weather}, {time_slot}, {style}"
+    return re.sub(r'\s+', ' ', prompt).strip()
 
 def _shape_scene_prose(state, story, phase=None):
     """Apply phase-aware paragraph rhythm and anti-repetition memory."""
@@ -2861,51 +3290,70 @@ class StoryEngine:
         ctx = _scene_context(state, beat='discovery', intent='explore', action=opening)
         state['current_scene'] = ctx
 
-        # Give the first page a bespoke scene instead of the generic discovery
-        # template; this is where the player's premise earns its specificity.
         harvest = state.get('opening_keywords_harvest', {})
         nouns = harvest.get('nouns', [])
-        premise_object = nouns[-1] if nouns else 'the nearest clue'
+        role = state.get('player_role', 'wanderer')
+        loc_words = set(loc.lower().split())
+        desc_nouns = [n for n in nouns if n != role and n != loc.lower() and n not in loc_words]
+        preferred = [n for n in desc_nouns if n in PREMISE_NOUN_PHRASING or n in PERSON_NOUNS]
+        if preferred:
+            target_noun = preferred[-1]
+        elif desc_nouns:
+            target_noun = desc_nouns[-1]
+        else:
+            target_noun = nouns[-1] if nouns else None
+
+        if target_noun and target_noun in PREMISE_NOUN_PHRASING:
+            phrased_premise = PREMISE_NOUN_PHRASING[target_noun][0]
+        elif target_noun and target_noun in PERSON_NOUNS:
+            phrased_premise = f"your search for {target_noun}"
+        elif target_noun and target_noun in PLACE_NOUNS:
+            phrased_premise = f"your pursuit of {target_noun}"
+        elif target_noun:
+            phrased_premise = f"your quest for {target_noun}"
+        else:
+            phrased_premise = None
+
+        if role == 'cat':
+            role_sensory = f"Your whiskers twitch as cool air sweeps across the {loc}, your pads soundless on the damp surface."
+            role_thought = f"Every feline instinct tells you {phrased_premise} is waiting somewhere beyond this turn." if phrased_premise else "Your ears swivel, tracking every faint rustle in the shadows."
+        elif role == 'astronaut':
+            role_sensory = f"Your suit displays calibrate against the stark expanse of the {loc}, life support readouts ticking in your peripheral vision."
+            role_thought = f"Survival demands precision: {phrased_premise} remains your driving objective." if phrased_premise else "The desolate silence of the frontier offers neither rescue nor shelter."
+        elif role == 'hacker':
+            role_sensory = f"Neon glare and fractured static spill across the {loc}, your cyberdeck humming as it sniffs for wireless handshakes."
+            role_thought = f"Somewhere in the city's encrypted traffic lies what you came for: {phrased_premise}." if phrased_premise else "The local subnet is alive with corporate counter-measures."
+        elif role == 'detective':
+            role_sensory = f"Rain-slick pavement and hollow echoes define the {loc}, every shadow holding the silhouette of an unanswered question."
+            role_thought = f"You turn up your collar against the chill, your focus locked onto {phrased_premise}." if phrased_premise else "Every detail here is evidence waiting to be read."
+        elif role == 'cartographer':
+            role_sensory = f"Your eyes trace the contours of the {loc}, seeking lines of certainty where none exist."
+            role_thought = "Your hand touches the map before it touches certainty—the parchment heavy with routes that ended in ruin."
+        elif role == 'pilot':
+            role_sensory = f"The horizon beyond the {loc} stretches wide and unforgiving, familiar cockpit gauges silent at your side."
+            role_thought = f"With no flight plan and no ground crew, {phrased_premise} is the only heading that matters." if phrased_premise else "Every instinct honed in flight now answers to footfalls on solid ground."
+        elif role == 'witch':
+            role_sensory = f"The subtle hum of old currents tingles at your fingertips as you take in the {loc}."
+            role_thought = f"The charms in your satchel rattle softly; {phrased_premise} drew you across the boundary." if phrased_premise else "The local spirits have already taken note of your presence."
+        elif role == 'scholar':
+            role_sensory = f"You study the weathered angles of the {loc}, piecing together the architecture of what came before."
+            role_thought = f"Ink-stained fingers reach for notes: {phrased_premise} is more than theory now." if phrased_premise else "The texts spoke of this place, though they omitted the creeping chill."
+        else:
+            tool = ROLE_ITEM_OR_TOOL.get(role, 'instincts')
+            role_sensory = f"You steady your breath against the quiet of the {loc}, letting your senses adjust to the terrain."
+            role_thought = f"With your {tool} ready, you keep your mind fixed on {phrased_premise}." if phrased_premise else "Whatever brought you to this threshold, turning back is no longer an option."
+
         opening_lines = [
-            f"The first thing you notice is {state['location_desc']}. Your body remembers how to breathe before your mind remembers why you are here.",
-            f"Your hand finds {premise_object} before it finds certainty. The detail is ordinary enough to be trusted, which makes it dangerous.",
+            f"The first thing you notice is {state['location_desc']}. Your senses adjust before your mind can reconcile how far you have come.",
+            role_sensory,
+            role_thought,
             f"Somewhere beyond the {loc}, a sound answers the fact of your arrival. It is too deliberate to be weather.",
-            f"You have one immediate advantage: you are awake, and the place has not yet decided what that means.",
+            f"You have one immediate advantage: you are alert, and the place has not yet decided what your arrival means.",
         ]
         base_story = ' '.join(opening_lines)
         p0 = _identity_opening_sentence(state, opening)
         story = (p0 + " " + base_story) if p0 else base_story
         story = _shape_scene_prose(state, story, state.get('arc_phase', 'setup'))
-        scene = state['location_desc']
-        choices = generate_choices(state, 'discovery')
-        _record_thread(state, f"your story began at the {loc}", 'opening', 7)
-        _touch_location_memory(state, loc, 'your story began here')
-        ns = NarrativeState(state)
-        ns.memory.record_visit(loc)
-        state['beat_history'].append('discovery')
-        state['last_action'] = opening
-        return story, scene, choices, None
-
-        templates = PROSE_TEMPLATES.get('discovery', [])
-        template = random.choice(templates) if templates else {
-            'format': "sensory_first",
-            'intro': "Under the {weather} of the {location}, a quiet detail presents itself. {motif_text}",
-            'body': "Your decision to {action_verb} leads you directly to {object_name}. The {location_noun} feels less like a new path and more like a line drawn by someone who knew you were coming.",
-            'beat': "Here, the {features[0]} has been left exposed, bearing the markings of the {faction}.",
-            'hook': "The next useful truth remains buried somewhere in this {location_noun}."
-        }
-        
-        base_story = _render_prose_template(state, template, ctx)
-        
-        # Prepend recast identity sentence for character immersion and test compatibility
-        p0 = _identity_opening_sentence(state, opening)
-        if p0:
-            story = p0 + " " + base_story
-        else:
-            story = base_story
-
-        story = _shape_scene_prose(state, story, state.get('arc_phase', 'setup'))
-
         scene = state['location_desc']
         choices = generate_choices(state, 'discovery')
         _record_thread(state, f"your story began at the {loc}", 'opening', 7)

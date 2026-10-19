@@ -20,10 +20,11 @@ saves/*
 !saves/.keep
 saves_backup/
 
-lore_corpus/*
+lore_corpus/__pycache__/
 !lore_corpus/.keep
+!lore_corpus/lore_manager.py
 !lore_corpus/documents/
-lore_corpus/documents/*
+!lore_corpus/documents/*.json
 !lore_corpus/documents/.keep
 
 # Downloaded Images Cache

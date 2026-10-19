@@ -1,0 +1,77 @@
+{
+  "genre_id": "samurai",
+  "name": "Samurai Chronicles",
+  "keywords": [
+    "samurai",
+    "feudal",
+    "kyoto",
+    "guarding",
+    "imperial",
+    "palace"
+  ],
+  "communication_mode": "cyber_link",
+  "scraped_sources": [
+    {
+      "title": "Toei Kyoto Studio Park",
+      "description": "Theme park and film set in Kyoto, Japan",
+      "extract": "Toei Kyoto Studio Park , also known as Usumaza Kyoto Village, is a film set and theme park in Kyoto, Japan. It opened in 1975. It is situated in Toei Company's Kyoto Studio where numerous period dramas have been filmed. Visitors are occasionally able to watch the filming of TV shows and movies."
+    },
+    {
+      "title": "Last Samurai Standing (TV series)",
+      "description": "2025 Japanese historical television series",
+      "extract": "Last Samurai Standing  is a 2025 Japanese Netflix original live-action television series adapted from the novel of the same name written by Shogo Imamura. Starring Junichi Okada, Yumia Fujisaki and Kaya Kiyohara, and set in the late 19th century during the Meiji period, the series takes place at the Tenry\u016bji monastery in Kyoto."
+    },
+    {
+      "title": "Samurai",
+      "description": "Professional warrior class in Japan",
+      "extract": "The samurai  were members of the professional warrior class in pre-industrial Japan, who served as retainers to the lords. These men came from warrior families and trained from a young age in military arts through private instruction. Swordsmanship, archery, and horsemanship were the primary martial skills; and often in Japanese history, only samurai had the right to even possess these weapons. These weapons required years of training to master, and this commitment made the samurai superior to conscripts and militia, the latter who were typically given only days of training. The samurai also studied literature, calligraphy, and Confucian philosophy, befitting their roles as bureaucrats under the shoguns."
+    }
+  ],
+  "environment": [
+    "Toei Kyoto Studio Park , also known as Usumaza Kyoto Village, is a film set and theme park in Kyoto, Japan.",
+    "It is situated in Toei Company's Kyoto Studio where numerous period dramas have been filmed.",
+    "Visitors are occasionally able to watch the filming of TV shows and movies.",
+    "Last Samurai Standing  is a 2025 Japanese Netflix original live-action television series adapted from the novel of the same name written by Shogo Imamura."
+  ],
+  "hazards": [
+    "an unexpected challenge arising from the tensions in Kyoto"
+  ],
+  "terminology": [
+    "toei",
+    "kyoto",
+    "studio",
+    "park",
+    "usumaza",
+    "village",
+    "japan",
+    "company",
+    "visitors",
+    "last"
+  ],
+  "npcs": [
+    {
+      "name": "The Elder Samurai",
+      "role": "senior advisor",
+      "format": "cyber_link"
+    },
+    {
+      "name": "Courier of Kyoto",
+      "role": "messenger",
+      "format": "cyber_link"
+    }
+  ],
+  "dialogue_templates": [
+    "\"Stay vigilant,\" {name} cautions in low tones. \"What happened at the {location} was only the beginning.\"",
+    "{name} steps forward with a measured nod: \"If you seek answers, you will not find them by standing still.\""
+  ],
+  "sensory_details": [
+    "the faint, unmistakable scent of aged parchment, dry timber, and cold stone",
+    "the muted echoes of footsteps vibrating across the stone floor"
+  ],
+  "choice_templates": [
+    "Investigate the archives at the {location} for hidden historical records",
+    "Consult your notes and plan your next move with deliberate caution",
+    "Confront the watchful observer near the entrance to demand an explanation",
+    "Survey the surrounding ground for signs of recent passage"
+  ]
+}

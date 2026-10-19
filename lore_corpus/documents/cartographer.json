@@ -1,0 +1,78 @@
+{
+  "genre_id": "cartographer",
+  "name": "Cartographer Chronicles",
+  "keywords": [
+    "cartographer",
+    "disgraced",
+    "whose",
+    "maps",
+    "army",
+    "death",
+    "adventure"
+  ],
+  "communication_mode": "spoken",
+  "scraped_sources": [
+    {
+      "title": "Lake Ontario",
+      "description": "Easternmost of Great Lakes in North America",
+      "extract": "Lake Ontario is one of the five Great Lakes of North America. It is bounded on the north, west, and southwest by the Canadian province of Ontario, and on the south and east by the U.S. state of New York. The Canada\u2013United States border spans the centre of the lake. On the Canadian side, the major cities are Kingston, Mississauga, Toronto, Hamilton, and St. Catharines. On the American side, the major cities are Rochester and Watertown."
+    },
+    {
+      "title": "Oscar Baumann",
+      "description": "Austrian explorer, cartographer and ethnographer",
+      "extract": "Oscar Baumann was an Austrian explorer, cartographer and ethnographer."
+    },
+    {
+      "title": "Cartography",
+      "description": "Study and practice of making maps",
+      "extract": "Cartography is the study and practice of making and using maps. Combining science, aesthetics and technique, cartography builds on the premise that reality can be modeled in ways that communicate spatial information effectively."
+    }
+  ],
+  "environment": [
+    "It is bounded on the north, west, and southwest by the Canadian province of Ontario, and on the south and east by the U.S.",
+    "On the Canadian side, the major cities are Kingston, Mississauga, Toronto, Hamilton, and St.",
+    "Cartography is the study and practice of making and using maps.",
+    "Combining science, aesthetics and technique, cartography builds on the premise that reality can be modeled in ways that communicate spatial information effectively."
+  ],
+  "hazards": [
+    "an unexpected challenge arising from the tensions in crater lake"
+  ],
+  "terminology": [
+    "lake",
+    "ontario",
+    "great",
+    "lakes",
+    "north",
+    "america",
+    "canadian",
+    "york",
+    "canada",
+    "united"
+  ],
+  "npcs": [
+    {
+      "name": "The Elder Cartographer",
+      "role": "senior advisor",
+      "format": "spoken"
+    },
+    {
+      "name": "Courier of Crater Lake",
+      "role": "messenger",
+      "format": "spoken"
+    }
+  ],
+  "dialogue_templates": [
+    "\"Stay vigilant,\" {name} cautions in low tones. \"What happened at the {location} was only the beginning.\"",
+    "{name} steps forward with a measured nod: \"If you seek answers, you will not find them by standing still.\""
+  ],
+  "sensory_details": [
+    "the faint, unmistakable scent of aged parchment, dry timber, and cold stone",
+    "the muted echoes of footsteps vibrating across the stone floor"
+  ],
+  "choice_templates": [
+    "Investigate the archives at the {location} for hidden historical records",
+    "Consult your notes and plan your next move with deliberate caution",
+    "Confront the watchful observer near the entrance to demand an explanation",
+    "Survey the surrounding ground for signs of recent passage"
+  ]
+}

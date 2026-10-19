@@ -7,6 +7,7 @@ import os
 import re
 import secrets
 import uuid
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 from story_engine import StoryEngine
+from image_retriever import resolve_scene_image
 
 load_dotenv()
 app = Flask(__name__)
@@ -114,11 +116,34 @@ def _make_checkpoint(save, kind="checkpoint", description=None):
     return checkpoint
 
 
+def _build_turn_image(save, nonce_offset=0):
+    engine_state = StoryEngine.ensure_state_defaults(save.get("engine_state", {}))
+    action = save.get("last_action") or (save.get("history", [])[-2].get("content") if len(save.get("history", [])) >= 2 else None)
+    prompt = StoryEngine.build_image_prompt(engine_state, action=action)
+    nonce = engine_state.get("image_nonce", 0) + nonce_offset
+    turn = save.get("current_turn", 1)
+    seed = (abs(hash(prompt + f":{turn}:{nonce}")) % 90000) + 1000
+    role = engine_state.get("player_role", "wanderer")
+    genre = engine_state.get("genre", "fantasy")
+    loc = engine_state.get("location", "")
+    image_url, _ = resolve_scene_image(
+        prompt=prompt,
+        seed=seed,
+        role=role,
+        genre=genre,
+        loc=loc
+    )
+    return image_url, prompt
+
+
 def _turn_response(save, turn, access_key=None):
+    image_url, image_prompt = _build_turn_image(save)
     response = {
         "save_id": save["id"], "story": turn["story"], "scene": turn["scene"],
         "choices": turn["choices"], "turn": save["current_turn"],
         "panels": _rpg_panels(save["engine_state"]),
+        "image_url": image_url,
+        "image_prompt": image_prompt,
     }
     if access_key:
         response["access_key"] = access_key
@@ -203,6 +228,7 @@ def api_action():
     current = _turn(story, scene, choices)
     save["last_turn"] = current
     save["history"].extend([{"role": "player", "content": action}, {"role": "narrator", **current}])
+    save["last_action"] = action
     if save["current_turn"] % 4 == 0:
         _make_checkpoint(save, "milestone")
     _write(save)
@@ -215,6 +241,7 @@ def api_get_game(save_id):
     if error:
         return error
     last_turn = save["last_turn"]
+    image_url, image_prompt = _build_turn_image(save)
     return jsonify({
         "id": save["id"], "title": save["title"], "opening": save["opening"],
         "history": save["history"], "current_turn": save["current_turn"],
@@ -222,7 +249,44 @@ def api_get_game(save_id):
         "scene": last_turn.get("scene"), "choices": last_turn.get("choices", []),
         "checkpoints": [_public_checkpoint(cp) for cp in save["checkpoints"]],
         "panels": _rpg_panels(save["engine_state"]),
+        "image_url": image_url,
+        "image_prompt": image_prompt,
     })
+
+
+@app.post("/api/image-regenerate")
+def api_image_regenerate():
+    body = request.get_json(silent=True) or {}
+    save, error = _read_authorized(body.get("save_id"))
+    if error:
+        return error
+    state = StoryEngine.ensure_state_defaults(save["engine_state"])
+    nonce = state.get("image_nonce", 0) + 1
+    state["image_nonce"] = nonce
+    save["engine_state"] = state
+    _write(save)
+
+    image_url, image_prompt = _build_turn_image(save, nonce_offset=nonce)
+    return jsonify({
+        "ok": True,
+        "url": image_url,
+        "query": image_prompt,
+        "caption": state.get("location_desc", image_prompt),
+    })
+
+
+@app.get("/api/scene-image")
+def api_scene_image():
+    """Dynamically resolve and cache a scene image."""
+    q = request.args.get("q", "").strip()
+    role = request.args.get("role", "wanderer")
+    genre = request.args.get("genre", "fantasy")
+    loc = request.args.get("loc", "")
+    seed = int(request.args.get("seed", 42))
+    if not q:
+        return jsonify({"error": "Missing prompt query"}), 400
+    image_url, src = resolve_scene_image(prompt=q, seed=seed, role=role, genre=genre, loc=loc)
+    return jsonify({"url": image_url, "source": src})
 
 
 @app.post("/api/game/save-checkpoint")

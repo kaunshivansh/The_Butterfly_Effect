@@ -75,13 +75,12 @@
     }
     #regen-img-btn{
       position:absolute;right:12px;top:10px;z-index:3;
-      background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12);
-      color:rgba(255,255,255,.45);font-family:var(--font);font-size:9px;letter-spacing:.12em;
-      padding:4px 8px;cursor:pointer;border-radius:2px;backdrop-filter:blur(4px)
+      background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);
+      color:rgba(255,255,255,.75);font-family:var(--font);font-size:9px;letter-spacing:.14em;
+      padding:4px 10px;cursor:pointer;border-radius:3px;backdrop-filter:blur(6px);
+      transition:all .2s ease;display:inline-block
     }
-    /* Narrative remains text-only; the scene panel keeps the original atmosphere. */
-    #regen-img-btn{display:none}
-    #regen-img-btn:hover{color:#ddd;border-color:rgba(155,126,255,.45)}
+    #regen-img-btn:hover{color:#fff;border-color:rgba(155,126,255,.7);background:rgba(20,15,35,.85)}
     /* Vignette overlay on the image */
     #img-panel::after{
       content:'';position:absolute;inset:0;
@@ -438,7 +437,11 @@ async function init(){
     }
 
     // Show image for last scene
-    if(lastScene) showPlaceholder(lastScene);
+    if(data.image_url){
+      setImage(data.image_url, data.image_prompt || lastScene);
+    } else if(lastScene){
+      showPlaceholder(lastScene);
+    }
 
     // Show choices from the last assistant message
     if(hist.length>0){
@@ -498,8 +501,12 @@ async function sendAction(actionOverride){
 
       addStoryEntry(data.story || 'The story continues...', true);
 
-      // Fetch image from search
-      if(data.scene) showPlaceholder(data.scene);
+      // Show image for scene
+      if(data.image_url){
+        setImage(data.image_url, data.image_prompt || data.scene);
+      } else if(data.scene){
+        showPlaceholder(data.scene);
+      }
 
       // Show clickable choices
       if(data.choices && data.choices.length>0) renderChoices(data.choices);
@@ -531,7 +538,17 @@ async function fetchAndShowImage(sceneQuery, captionText){
   updateSceneDesc(captionText || sceneQuery);
 
   try{
-    showPlaceholder(sceneQuery);
+    const r=await fetch('/api/image-regenerate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...saveHeaders()},
+      body:JSON.stringify({save_id:saveId}),
+    });
+    const data=await r.json();
+    if(data.url){
+      setImage(data.url, data.caption || data.query || captionText);
+    } else {
+      showPlaceholder(sceneQuery);
+    }
   }catch(e){
     showPlaceholder(sceneQuery);
   }
@@ -645,18 +662,33 @@ function typeWriter(el, text, speed){
   requestAnimationFrame(step);
 }
 
-function setImage(path){
-  sceneImg.src=path;
-  sceneImg.style.display='block';
-  sceneImg.classList.add('loaded');
-  scenePlaceholder.style.display='none';
-  sceneImg.onerror=()=>{ sceneImg.style.display='none';sceneImg.classList.remove('loaded'); scenePlaceholder.style.display='flex'; };
+function setImage(path, caption){
+  if(!path) return;
+  sceneLoading.style.display='block';
+  if(caption) updateSceneDesc(caption);
+
+  const img = new Image();
+  img.onload = () => {
+    sceneImg.src = path;
+    sceneImg.style.display = 'block';
+    sceneImg.offsetHeight;
+    sceneImg.classList.add('loaded');
+    scenePlaceholder.style.display = 'none';
+    sceneLoading.style.display = 'none';
+  };
+  img.onerror = () => {
+    sceneImg.style.display = 'none';
+    sceneImg.classList.remove('loaded');
+    scenePlaceholder.style.display = 'flex';
+    sceneLoading.style.display = 'none';
+  };
+  img.src = path;
 }
 
 function updateSceneDesc(text){
   text = text || '';
-  sceneDesc.textContent=text.slice(0,120)+(text.length>120?'…':'');
-  imageCaption.textContent=text ? 'searched: '+text.slice(0,150)+(text.length>150?'…':'') : '';
+  sceneDesc.textContent = text.slice(0,140)+(text.length>140?'…':'');
+  imageCaption.textContent = text ? text.slice(0,140)+(text.length>140?'…':'') : '';
 }
 
 async function regenerateImage(){

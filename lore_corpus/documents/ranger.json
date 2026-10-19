@@ -1,0 +1,79 @@
+{
+  "genre_id": "ranger",
+  "name": "Ranger Chronicles",
+  "keywords": [
+    "ranger",
+    "follows",
+    "vanished",
+    "caravan",
+    "into",
+    "winter",
+    "woods",
+    "fantasy"
+  ],
+  "communication_mode": "spoken",
+  "scraped_sources": [
+    {
+      "title": "Yuba County Five",
+      "description": "1978 deaths and disappearance in California",
+      "extract": "The Yuba County Five were young men from Yuba County, California, United States, each with mild intellectual disabilities or psychiatric conditions, who were reported missing after attending a college basketball game at California State University, Chico, on the night of February\u00a024, 1978. Four of them\u2014Bill Sterling,\u00a029; Jack Huett,\u00a024; Ted Weiher,\u00a032; and Jack Madruga,\u00a030\u2014were later found dead; the fifth, Gary Mathias, 25, has never been found."
+    },
+    {
+      "title": "82nd Airborne Division",
+      "description": "Airborne division of the United States Army",
+      "extract": "The 82nd Airborne Division is a United States Army airborne infantry division that specializes in parachute assault, based in Fort Bragg, North Carolina. Currently, the division is commanded by Major General Brandon Tegtmeier."
+    },
+    {
+      "title": "Ranger",
+      "description": "Topics referred to by the same term",
+      "extract": "A ranger is typically someone in a law enforcement or military/paramilitary role specializing in patrolling a given territory, called \"ranging\" or \"scouting\". The term most often refers to:Park ranger or forest ranger, a person charged with protecting and preserving protected parklands and forests\nNational Park Service ranger, an employee of the National Park Service\nU.S. Forest Service ranger, an employee of the United States Forest Service\nRanger of Windsor Great Park, a ceremonial office of the UK\nIncludes the Keepers of Epping Forest who are charged to \"range\" about the Forest in their duties"
+    }
+  ],
+  "environment": [
+    "The Yuba County Five were young men from Yuba County, California, United States, each with mild intellectual disabilities or psychiatric conditions, who were reported missing after attending a college basketball game at California State University, Chico, on the night of February\u00a024, 1978.",
+    "Four of them\u2014Bill Sterling,\u00a029; Jack Huett,\u00a024; Ted Weiher,\u00a032; and Jack Madruga,\u00a030\u2014were later found dead; the fifth, Gary Mathias, 25, has never been found.",
+    "The 82nd Airborne Division is a United States Army airborne infantry division that specializes in parachute assault, based in Fort Bragg, North Carolina.",
+    "A ranger is typically someone in a law enforcement or military/paramilitary role specializing in patrolling a given territory, called \"ranging\" or \"scouting\"."
+  ],
+  "hazards": [
+    "an unexpected challenge arising from the tensions in frostbitten forest"
+  ],
+  "terminology": [
+    "yuba",
+    "county",
+    "five",
+    "california",
+    "united",
+    "states",
+    "state",
+    "university",
+    "chico",
+    "february"
+  ],
+  "npcs": [
+    {
+      "name": "The Elder Ranger",
+      "role": "senior advisor",
+      "format": "spoken"
+    },
+    {
+      "name": "Courier of Frostbitten Forest",
+      "role": "messenger",
+      "format": "spoken"
+    }
+  ],
+  "dialogue_templates": [
+    "\"Stay vigilant,\" {name} cautions in low tones. \"What happened at the {location} was only the beginning.\"",
+    "{name} steps forward with a measured nod: \"If you seek answers, you will not find them by standing still.\""
+  ],
+  "sensory_details": [
+    "the faint, unmistakable scent of aged parchment, dry timber, and cold stone",
+    "the muted echoes of footsteps vibrating across the stone floor"
+  ],
+  "choice_templates": [
+    "Investigate the archives at the {location} for hidden historical records",
+    "Consult your notes and plan your next move with deliberate caution",
+    "Confront the watchful observer near the entrance to demand an explanation",
+    "Survey the surrounding ground for signs of recent passage"
+  ]
+}

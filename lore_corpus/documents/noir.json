@@ -1,0 +1,89 @@
+{
+  "genre_id": "noir",
+  "name": "Hardboiled Noir & Detective Mystery",
+  "keywords": [
+    "detective",
+    "noir",
+    "private eye",
+    "murder",
+    "investigator",
+    "trenchcoat",
+    "cigarette",
+    "revolver",
+    "alibi",
+    "crime",
+    "clue",
+    "gumshoe",
+    "suspect"
+  ],
+  "communication_mode": "noir_whisper",
+  "scraped_sources": [
+    {
+      "title": "Film noir",
+      "description": "Crime films with cynical atmosphere",
+      "extract": "A film noir is a Hollywood crime drama film that emphasizes cynical attitudes and motivations. The 1940s and 1950s are generally regarded as the \"classic period\" of American film noir. Film noir of this era is associated with a low-key, black-and-white visual style that has roots in German expressionist cinematography. Many of the prototypical stories and attitudes expressed in classic noir derive from the hardboiled school of crime fiction that emerged in the United States during the Great Depression, known as noir fiction. Film noir encompasses a range of plots, commonly featuring mysteries/crime dramas, detective fiction, and stories with themes of corruption, organized crime, redemption, cynicism, and tragedy."
+    },
+    {
+      "title": "Hardboiled",
+      "description": "Literary genre",
+      "extract": "Hardboiled fiction is a genre of crime fiction and detective fiction, similar in tone or mood to noir fiction, whose typical protagonist is a justice-seeking detective battling the violence of organized crime, while dealing with a legal system that has become as corrupt as the organized crime itself. Hardboiled works are largely set during Prohibition in the United States (1920\u20131933) or its aftermath, during a historical uptick in American organized crime. Rendered cynical by the cycle of violence, the detectives of hardboiled fiction are often antiheroes. Notable hardboiled detectives include Dick Tracy, Philip Marlowe, Nick Charles, Mike Hammer, Sam Spade, Lew Archer, Slam Bradley, Dan Turner, and the Continental Op."
+    },
+    {
+      "title": "Private investigator",
+      "description": "Person hired to undertake investigatory law services",
+      "extract": "A private investigator is a person who can be hired by individuals or groups to undertake investigatory law services. Private investigators often work for attorneys in civil and criminal cases."
+    }
+  ],
+  "environment": [
+    "a rain-drenched street corner where yellow taxicabs throw glare across wet asphalt",
+    "a second-story office smelling of stale tobacco, dried ink, and cheap bourbon",
+    "a shadowy warehouse dock where river water slaps rhythmically against oily pilings"
+  ],
+  "hazards": [
+    "a hired muscle waiting in the stairwell with a lead pipe",
+    "a forged alibi leading straight into a police commissioner's crosshairs",
+    "a blackmail photograph that someone is willing to kill to recover"
+  ],
+  "terminology": [
+    ".38 snub-nose",
+    "matchbook clue",
+    "brass knuckles",
+    "venetian blinds",
+    "corrupt precinct",
+    "faded ledger",
+    "trenchcoat pocket",
+    "ballistics report"
+  ],
+  "npcs": [
+    {
+      "name": "Lieutenant O'Malley",
+      "role": "cynical precinct cop",
+      "format": "spoken"
+    },
+    {
+      "name": "Vivian Ross",
+      "role": "nervous heiress",
+      "format": "spoken"
+    },
+    {
+      "name": "Mickey the Pen",
+      "role": "dockside informant",
+      "format": "whisper"
+    }
+  ],
+  "dialogue_templates": [
+    "\"{name} warned you to drop this case three days ago,\" the voice says through the smoke. \"Curiosity has a habit of ending at the coroner's slab.\"",
+    "\"{name} didn't tell you the whole story,\" Mickey whispers, pressing a crumpled matchbook into your palm. \"Check the address inside.\""
+  ],
+  "sensory_details": [
+    "the cold trickle of rain sneaking past your upturned trenchcoat collar",
+    "the click of a silver lighter illuminating tired, suspicious eyes in the dark",
+    "the sour tang of burnt coffee and cheap tobacco hanging in the hallway"
+  ],
+  "choice_templates": [
+    "Search the desk drawers at the {location} for the missing correspondence",
+    "Question the contact about who paid for the silence at the {location}",
+    "Slip out through the fire escape before precinct detectives arrive",
+    "Examine the bloodstains and tire marks on the wet pavement"
+  ]
+}

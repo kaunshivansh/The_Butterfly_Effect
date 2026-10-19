@@ -1,0 +1,94 @@
+{
+  "genre_id": "feline",
+  "name": "Urban Feline Perspective",
+  "keywords": [
+    "cat",
+    "feline",
+    "kitten",
+    "stray",
+    "paws",
+    "whiskers",
+    "claws",
+    "tail",
+    "fur",
+    "prowling",
+    "alleycat",
+    "purr",
+    "meow",
+    "gutter"
+  ],
+  "communication_mode": "feline_sensory",
+  "scraped_sources": [
+    {
+      "title": "Feral cat",
+      "description": "Unowned or untamed domestic cat in the outdoors",
+      "extract": "A feral cat or stray cat is an unowned domestic cat that lives freely outdoors and avoids human contact; it does not allow itself to be handled or touched, and usually remains hidden from humans. Feral cats may breed over dozens of generations and become a mesopredator or even a local apex predator in urban, savannah and bushland environments, especially on islands where native animals did not evolve alongside natural predators. Some feral cats may become more comfortable with people who regularly feed them, but even with long-term attempts at socialization, they usually remain aloof and are most active after dusk. Of the 700 million cats in the world, an estimated 480 million are feral."
+    },
+    {
+      "title": "Cat senses",
+      "description": "Senses of Felis catus",
+      "extract": "Cat senses are adaptations that allow cats to be highly efficient predators. Cats are good at detecting movement in low light, have an acute sense of hearing and smell, and their sense of touch is enhanced by long whiskers that protrude from their heads and bodies. These senses evolved to allow cats to hunt effectively at dawn and dusk."
+    },
+    {
+      "title": "Cat behavior",
+      "description": "Behavior of cats",
+      "extract": "Cat behavior encompasses the actions and reactions displayed by a cat in response to various stimuli and events. Cat behavior includes body language, elimination habits, aggression, play, communication, hunting, grooming, urine marking, and face rubbing. It varies among individuals, colonies, and breeds."
+    }
+  ],
+  "environment": [
+    "a narrow cobblestone alley flanked by damp brick walls and overflowing wooden crates",
+    "a dizzying zinc rooftop slick with twilight drizzle and chimney smoke",
+    "the sheltered hollow beneath a market stall smelling of salt herring and sawdust",
+    "a sun-warmed windowsill overlooking the restless bustle of the street below"
+  ],
+  "hazards": [
+    "a snarling neighborhood dog straining against a rusted wire chain",
+    "a sudden downpour cascading off gutters and flooding the cobblestones",
+    "a territory-marking rival tomcat bristling on the garden fence",
+    "an impatient street vendor wielding a wooden broom"
+  ],
+  "terminology": [
+    "velvet paws",
+    "whiskers",
+    "scent markings",
+    "retractable claws",
+    "tail twitch",
+    "night vision",
+    "low crouch",
+    "cobblestone cracks"
+  ],
+  "npcs": [
+    {
+      "name": "The Old Ginger Tom",
+      "role": "scarred territory rival",
+      "format": "hiss"
+    },
+    {
+      "name": "The Baker's Apprentice",
+      "role": "friendly bread-thrower",
+      "format": "spoken"
+    },
+    {
+      "name": "The Butcher's Mastiff",
+      "role": "chained alley dog",
+      "format": "growl"
+    }
+  ],
+  "dialogue_templates": [
+    "Across the yard, {name} lowers its ears flat and emits a warning rasp: the alley has already been claimed.",
+    "From the open doorway, {name} tosses a scrap of warm fat into the sawdust with a quiet whistle.",
+    "The low, vibrating rumble of {name} rattles against the wooden fence: one step closer means teeth."
+  ],
+  "sensory_details": [
+    "the damp scent of moss, chimney soot, and frying lard riding the evening breeze",
+    "the sharp prickle of cold rain striking your ears as whiskers twitch with vigilance",
+    "the silent, cushioned impact of your paws springing between wet stone steps",
+    "every distant footstep vibrating through the floorboards into your ribcage"
+  ],
+  "choice_templates": [
+    "Leap silently onto the wooden awning above the {location}",
+    "Crouch low in the shadows and test the air for the scent of food",
+    "Arch your spine and give a low, firm warning hiss at the intruder",
+    "Squeeze through the iron railing into the dry courtyard"
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "genre_id": "scifi_space",
+  "name": "Deep Space & Planetary Survival",
+  "keywords": [
+    "astronaut",
+    "space",
+    "moon",
+    "jupiter",
+    "europa",
+    "orbit",
+    "oxygen",
+    "spacesuit",
+    "shuttle",
+    "station",
+    "satellite",
+    "debris",
+    "airlock",
+    "telemetry",
+    "radiation",
+    "propulsion",
+    "lander",
+    "eva",
+    "vacuum",
+    "cosmic",
+    "alien planet",
+    "starship",
+    "cryo",
+    "colony"
+  ],
+  "communication_mode": "radio_comms",
+  "scraped_sources": [
+    {
+      "title": "Europa (moon)",
+      "description": "Smallest Galilean moon of Jupiter",
+      "extract": "Europa or Jupiter II is the smallest and least massive of Jupiter's four Galilean moons. It is observable from Earth with common binoculars and is a planetary-mass moon, slightly smaller and less massive than Earth's Moon. Europa is an icy moon, and, of the three icy Galilean moons, the closest orbiting Jupiter. As a result, it exhibits a relatively young surface shaped by tidal heating."
+    },
+    {
+      "title": "Extravehicular activity",
+      "description": "Activity done by an astronaut outside a spacecraft",
+      "extract": "Extravehicular activity (EVA) is any activity performed by an astronaut in outer space outside of a spacecraft. This includes spacewalks, lunar or planetary surface exploration, and stand-up EVAs (SEVAs) where astronauts stand through an open hatch without fully leaving the spacecraft. EVAs have been conducted by the Soviet Union/Russia, the United States, and China, with astronauts from Canada, Japan, the United Arab Emirates, and the European Space Agency also participating in EVAs conducted by those nations. Since there is no atmosphere in space, the astronaut is completely dependent on the space suit for environmental support."
+    },
+    {
+      "title": "Space suit",
+      "description": "Garment worn to protect a human in space",
+      "extract": "A space suit is an environmental suit used for protection from the harsh environment of outer space. It mainly protects from outer space\u2019s vacuum, as space suits are a highly specialized pressure suit, but it also protects against temperature extremes, as well as radiation and micrometeoroids. Basic space suits are worn as a safety precaution inside spacecrafts in case of loss of cabin pressure. For extravehicular activity (EVA), more complex space suits are worn, featuring a portable life support system."
+    },
+    {
+      "title": "Space debris",
+      "description": "Pollution around Earth by defunct artificial objects",
+      "extract": "Space debris are defunct human-made objects in space\u00a0\u2013 principally in Earth orbit\u00a0\u2013 which no longer serve a useful function. These include derelict spacecraft, mission-related debris, and fragmentation debris from the breakup of derelict rocket bodies and spacecraft. In addition to derelict human-made objects left in orbit, space debris includes fragments from disintegration, erosion, or collisions; solidified liquids expelled from spacecraft; unburned particles from solid rocket motors; and even paint flecks. Space debris represents a risk to spacecraft."
+    }
+  ],
+  "environment": [
+    "a desolate plain of fractured cryo-ice glowing beneath the gas giant's banded clouds",
+    "a field of jagged orbital wreckage drifting in silent gravitational lock",
+    "the airless rim of an ancient impact crater where telemetry signals bounce erratically",
+    "a pressurized habitation module humming with the strained vibration of auxiliary scrubbers",
+    "a sub-surface ice cavern lit only by the narrow beam of your helmet floodlight"
+  ],
+  "hazards": [
+    "life-support telemetry warning that oxygen reserves have fallen below critical thresholds",
+    "a sharp spike in ionizing cosmic radiation penetrating your suit's outer shielding",
+    "a micro-meteorite puncture venting pressure from an auxiliary thruster seal",
+    "a sudden fracture in the subterranean cryo-ice threatening structural breach",
+    "electromagnetic interference from Jupiter's magnetosphere scrambling your nav-beacon"
+  ],
+  "terminology": [
+    "oxygen scrubbers",
+    "telemetry HUD",
+    "EVA thruster pack",
+    "radiation dosimeter",
+    "airlock decompression valve",
+    "distress transponder",
+    "cryo-volcanic fissure",
+    "inertial guidance tracker",
+    "pressurized suit seals",
+    "emergency oxygen canister"
+  ],
+  "npcs": [
+    {
+      "name": "Colony Dispatch Delta",
+      "role": "automated comm beacon",
+      "format": "radio"
+    },
+    {
+      "name": "Synthetics Unit Echo",
+      "role": "damaged station android",
+      "format": "radio"
+    },
+    {
+      "name": "Commander Vane",
+      "role": "surviving shuttle pilot",
+      "format": "suit_radio"
+    },
+    {
+      "name": "Deep-Scan Rover 04",
+      "role": "autonomous exploratory probe",
+      "format": "hud_feed"
+    }
+  ],
+  "dialogue_templates": [
+    "Static tears across your helmet comms: \"{name} to survivor... signal strength at twenty percent. Confirm life signs before the next radiation cycle.\"",
+    "An automated alert pings inside your visor HUD: \"{name} reports atmospheric depletion. Recommend immediate breach containment.\"",
+    "A tense, strained voice breaks through the radio frequency: \"Survivor, this is {name}. Keep your seals tight. There is an active leak near the airlock.\"",
+    "The distress repeater loops across your headset: \"All personnel: {name} beacon is active. Orbital rendezvous window closes in three hours.\""
+  ],
+  "sensory_details": [
+    "the mechanical hiss of recycled breath scraping against your inner helmet visor",
+    "the colossal marbled silhouette of Jupiter filling half the silent, star-punctured sky",
+    "the cold numbness creeping into your gloved fingertips as ambient temperature drops",
+    "the rhythmic red blink of the oxygen warning in the lower quadrant of your HUD",
+    "the muffled vibration of your boots transmitting impact through solid extraterrestrial ice"
+  ],
+  "choice_templates": [
+    "Check your suit telemetry and re-route auxiliary power to life support",
+    "Scan the wreckage at the {location} for a salvageable emergency oxygen canister",
+    "Broadcast a directional distress frequency toward {region} orbit",
+    "Secure a magnetic tether and navigate the cryo-ice ridge",
+    "Examine the damaged airlock controls to force a pressure cycle"
+  ]
+}

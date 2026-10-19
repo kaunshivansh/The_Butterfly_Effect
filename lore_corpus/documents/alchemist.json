@@ -1,0 +1,77 @@
+{
+  "genre_id": "alchemist",
+  "name": "Alchemist Chronicles",
+  "keywords": [
+    "alchemist",
+    "prague",
+    "deciphering",
+    "ancient",
+    "mercurial",
+    "formula"
+  ],
+  "communication_mode": "spoken",
+  "scraped_sources": [
+    {
+      "title": "Prague",
+      "description": "Capital and largest city of the Czech Republic",
+      "extract": "Prague is the capital and largest city of the Czech Republic and the historical capital of Bohemia. Located on the Vltava River, the city has a population of about 1.4 million, making it the twelfth-largest city in the European Union. Its metropolitan area is home to approximately 2.3 million people."
+    },
+    {
+      "title": "Georg Baresch",
+      "description": "Czech antique collector and alchemist (1585\u20131662)",
+      "extract": "Georg Baresch, was a Bohemian antique collector and alchemist from Prague known for his connection to the Voynich manuscript."
+    },
+    {
+      "title": "Fullmetal Alchemist",
+      "description": "Japanese manga series by Hiromu Arakawa",
+      "extract": "Fullmetal Alchemist  is a Japanese manga series written and illustrated by Hiromu Arakawa. It was serialized in Square Enix's sh\u014dnen manga anthology magazine Monthly Sh\u014dnen Gangan between July 2001 and June 2010; the publisher later collected the individual chapters in 27 tank\u014dbon volumes. Set in a fictional universe in which alchemy is a widely practiced science, the series follows the journey of two alchemist brothers, Edward and Alphonse Elric, as they search for the philosopher's stone to restore their bodies after a failed attempt to bring their mother back to life via alchemy. The steampunk world of Fullmetal Alchemist is primarily styled after the European Industrial Revolution."
+    }
+  ],
+  "environment": [
+    "Prague is the capital and largest city of the Czech Republic and the historical capital of Bohemia.",
+    "Located on the Vltava River, the city has a population of about 1.4 million, making it the twelfth-largest city in the European Union.",
+    "Its metropolitan area is home to approximately 2.3 million people.",
+    "It was serialized in Square Enix's sh\u014dnen manga anthology magazine Monthly Sh\u014dnen Gangan between July 2001 and June 2010; the publisher later collected the individual chapters in 27 tank\u014dbon volumes."
+  ],
+  "hazards": [
+    "an unexpected challenge arising from the tensions in Prague"
+  ],
+  "terminology": [
+    "prague",
+    "czech",
+    "republic",
+    "bohemia",
+    "located",
+    "vltava",
+    "river",
+    "european",
+    "union",
+    "georg"
+  ],
+  "npcs": [
+    {
+      "name": "The Elder Alchemist",
+      "role": "senior advisor",
+      "format": "spoken"
+    },
+    {
+      "name": "Courier of Prague",
+      "role": "messenger",
+      "format": "spoken"
+    }
+  ],
+  "dialogue_templates": [
+    "\"Stay vigilant,\" {name} cautions in low tones. \"What happened at the {location} was only the beginning.\"",
+    "{name} steps forward with a measured nod: \"If you seek answers, you will not find them by standing still.\""
+  ],
+  "sensory_details": [
+    "the faint, unmistakable scent of aged parchment, dry timber, and cold stone",
+    "the muted echoes of footsteps vibrating across the stone floor"
+  ],
+  "choice_templates": [
+    "Investigate the archives at the {location} for hidden historical records",
+    "Consult your notes and plan your next move with deliberate caution",
+    "Confront the watchful observer near the entrance to demand an explanation",
+    "Survey the surrounding ground for signs of recent passage"
+  ]
+}

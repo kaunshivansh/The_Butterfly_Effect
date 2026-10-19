@@ -1,0 +1,84 @@
+{
+  "genre_id": "horror",
+  "name": "Gothic Horror & Psychological Dread",
+  "keywords": [
+    "horror",
+    "gothic",
+    "haunted",
+    "ghost",
+    "witch",
+    "curse",
+    "vampire",
+    "mansion",
+    "crypt",
+    "graveyard",
+    "nightmare",
+    "occult",
+    "demon"
+  ],
+  "communication_mode": "whisper",
+  "scraped_sources": [
+    {
+      "title": "Gothic fiction",
+      "description": "Romance, horror and death literary genre",
+      "extract": "Gothic fiction, often referred to as Gothic horror, is a literary aesthetic of fear and haunting. The name of the genre is derived from the Renaissance-era use of the word \"gothic\", as a pejorative term meaning medieval and barbaric, which itself originated from Gothic architecture and in turn the Goths."
+    },
+    {
+      "title": "Haunted house",
+      "description": "House or other building perceived as being inhabited by spirits",
+      "extract": "A haunted house, spook house or ghost house in ghostlore is a house or other building often perceived as being inhabited by disembodied spirits of the deceased who may have been former residents or were otherwise connected with the property. Parapsychologists often attribute haunting to the spirits of the dead who have suffered from violent or tragic events in the building's past such as murder, accidental death, or suicide."
+    },
+    {
+      "title": "Occult",
+      "description": "Knowledge of the hidden or the paranormal",
+      "extract": "The occult is a category of esoteric or supernatural beliefs and practices which generally fall outside the scope of organized religion and science, encompassing phenomena involving a 'hidden' or 'secret' agency, such as magic and mysticism. It can also refer to paranormal ideas such as extra-sensory perception and parapsychology."
+    }
+  ],
+  "environment": [
+    "an ancient ancestral manor where portraits seem to shift their gaze in the flickering candlelight",
+    "a mist-strangled graveyard where sunken headstones lean like broken teeth",
+    "a damp stone cellar echoing with the slow, deliberate drip of unseen water"
+  ],
+  "hazards": [
+    "a sudden draft that extinguishes your last tallow candle",
+    "a scratching sound behind the wainscoting that follows your exact pace",
+    "a rusted iron gate that swings shut with a deafening latch"
+  ],
+  "terminology": [
+    "tallow candle",
+    "iron talisman",
+    "parchment ritual",
+    "tomb seal",
+    "ancestral crypt",
+    "salt circle",
+    "decaying timber",
+    "unconsecrated ground"
+  ],
+  "npcs": [
+    {
+      "name": "Sister Agnes",
+      "role": "traumatized nun",
+      "format": "whisper"
+    },
+    {
+      "name": "Gideon the Sexton",
+      "role": "gravekeeper",
+      "format": "spoken"
+    }
+  ],
+  "dialogue_templates": [
+    "\"{name} told us the seals were unbroken,\" a rasping whisper breathes from the gloom. \"They lied.\"",
+    "\"Do not look into the mirror at the end of the hall,\" {name} trembles. \"It no longer shows the living.\""
+  ],
+  "sensory_details": [
+    "the stench of old damp earth and sweet, sickly rot hanging in the cold air",
+    "the rhythmic thud of your own pulse ringing deafeningly in your ears",
+    "the freezing cold that sweeps through the room right before the floorboards creak"
+  ],
+  "choice_templates": [
+    "Hold up the tallow candle and inspect the scratch marks on the door",
+    "Recite the protective ward and bar the iron latch behind you",
+    "Search the decaying bookshelves at the {location} for the family chronicle",
+    "Tread softly across the creaking floorboards toward the window"
+  ]
+}

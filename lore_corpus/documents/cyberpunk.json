@@ -1,0 +1,99 @@
+{
+  "genre_id": "cyberpunk",
+  "name": "Cyberpunk & Neon Sprawl",
+  "keywords": [
+    "hacker",
+    "cyberpunk",
+    "netrunner",
+    "cyborg",
+    "cybernetic",
+    "neon",
+    "megacorp",
+    "tokyo",
+    "data",
+    "deck",
+    "ice",
+    "ai",
+    "terminal",
+    "implant",
+    "black market",
+    "synthetic",
+    "android",
+    "drone",
+    "glitch",
+    "subroutine"
+  ],
+  "communication_mode": "cyber_link",
+  "scraped_sources": [
+    {
+      "title": "Cyberpunk",
+      "description": "Science fiction subgenre in a futuristic dystopian setting",
+      "extract": "Cyberpunk is a subgenre of science fiction set in a dystopian future. It is characterized by its focus on a combination of \"lowlife and high tech\". It features a range of futuristic technological and scientific achievements, including artificial intelligence and cyberware, which are juxtaposed with societal collapse, dystopia or decay. Much of cyberpunk comes from the New Wave science fiction movement of the 1960s and '70s. Writers such as Philip K. Dick, Michael Moorcock, Roger Zelazny, John Brunner, J. G. Ballard, Philip Jos\u00e9 Farmer, and Harlan Ellison explored the impact of technology, drug culture, and the sexual revolution. These authors diverged from the utopian tendencies of earlier science fiction."
+    },
+    {
+      "title": "Neuromancer",
+      "description": "1984 science fiction novel by William Gibson",
+      "extract": "Neuromancer is a 1984 science fiction novel by William Gibson. Set in the near future, the narrative follows Case, a computer hacker enlisted into a crew by a powerful artificial intelligence and a traumatised former soldier to complete a high-stakes heist. It was Gibson's debut novel and, after its success, served as the first entry in the Sprawl trilogy, followed by Count Zero (1986) and Mona Lisa Overdrive (1988)."
+    },
+    {
+      "title": "Cyberware",
+      "description": "Hardware implanted in the human body and/or brain",
+      "extract": "Cyberware refers to technology that integrates directly with the human nervous system, typically through implants or interfaces that enable communication between machines and the body."
+    }
+  ],
+  "environment": [
+    "a rain-slicked alleyway bathed in the stuttering cyan glow of holographic adverts",
+    "a smoke-choked underground cyber-clinic humming with jury-rigged diagnostic rigs",
+    "the steel catwalk overlooking the neon-drenched canyon of the lower district",
+    "an abandoned server node lined with cooled optical fiber racks and humming fans"
+  ],
+  "hazards": [
+    "a Black ICE counter-intrusion probe scorching your neural jack",
+    "a corporate surveillance drone hovering overhead with scanning optics",
+    "a corrupt precinct officer demanding an unregistered cred-chip transfer",
+    "a sudden power surge frying the bypass capacitors in your deck"
+  ],
+  "terminology": [
+    "neural jack",
+    "cyberdeck",
+    "ICE breaker",
+    "encrypted datashard",
+    "sub-dermal plating",
+    "holographic visor",
+    "optical camouflage",
+    "cred-chip"
+  ],
+  "npcs": [
+    {
+      "name": "Null-Vector",
+      "role": "renegade netrunner",
+      "format": "cyber_link"
+    },
+    {
+      "name": "Doc Kessler",
+      "role": "back-alley ripperdoc",
+      "format": "spoken"
+    },
+    {
+      "name": "Voss",
+      "role": "corporate syndicate fixer",
+      "format": "cyber_link"
+    }
+  ],
+  "dialogue_templates": [
+    "A direct neuro-link packet flickers in your peripheral vision: \"{name} here. The corp ICE is already sniffing this subnet. Pull the shard and disconnect.\"",
+    "\"{name} told you this gig was dirty,\" the voice murmurs through the encrypted channel. \"Don't leave digital fingerprints on the grid.\"",
+    "\"You're burning daylight and bandwidth,\" {name} whispers. \"The security drones sweep this block every ninety seconds.\""
+  ],
+  "sensory_details": [
+    "the hot metallic tang of overclocked cyberware humming beneath your temple",
+    "acid rain hissing against asphalt, reflecting fractured magenta and violet neon",
+    "the synthetic hum of repulsor vehicles cruising along high-rise transit rails"
+  ],
+  "choice_templates": [
+    "Jack into the terminal at the {location} and run a stealth ICE bypass",
+    "Slip beneath the neon shadows to evade the security drone patrol",
+    "Analyze the encrypted datashard for corporate clearance codes",
+    "Overclock your cybernetic optics to trace the server's optical cables"
+  ]
+}

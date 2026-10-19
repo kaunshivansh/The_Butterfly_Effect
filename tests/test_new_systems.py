@@ -309,6 +309,38 @@ class FlaskTextRpgTest(unittest.TestCase):
         self.assertEqual(fork_save["current_turn"], checkpoint["turn"])
         self.assertEqual(len(fork_save["history"]), 4)
 
+    def test_image_generation_endpoints_and_prompts(self):
+        game = self._new_game()
+        self.assertIn("image_url", game)
+        self.assertIn("image_prompt", game)
+        self.assertTrue(game["image_url"].startswith(("/static/game_images/", "https://")))
+
+        # Test regeneration endpoint
+        regen_resp = self.client.post(
+            "/api/image-regenerate",
+            headers=self._headers(game),
+            json={"save_id": game["save_id"]}
+        )
+        self.assertEqual(regen_resp.status_code, 200)
+        regen_data = regen_resp.get_json()
+        self.assertTrue(regen_data.get("ok"))
+        self.assertIn("url", regen_data)
+        self.assertIn("query", regen_data)
+
+        # Test scene-image endpoint
+        scene_img_resp = self.client.get(f"/api/scene-image?q={game['image_prompt']}&role=wanderer&genre=fantasy")
+        self.assertEqual(scene_img_resp.status_code, 200)
+        self.assertIn("url", scene_img_resp.get_json())
+
+        # Test role-adapted image prompt building
+        from story_engine import StoryEngine
+        astronaut_state = StoryEngine.create_state("I am an astronaut stranded on Mars looking for oxygen")
+        prompt = StoryEngine.build_image_prompt(astronaut_state)
+        self.assertIn("astronaut", prompt)
+        self.assertIn("EVA spacesuit", prompt)
+        self.assertIn("sci-fi", prompt)
+        self.assertNotIn("fantasy digital art", prompt)
+
 
 class SecurityAndHardeningTest(unittest.TestCase):
     def test_is_safe_id_helper(self):
@@ -652,6 +684,99 @@ class SecurityAndHardeningTest(unittest.TestCase):
             story_engine._pick_beat = orig_pick_beat
             story_engine.random.random = orig_random
             story_engine.random.choice = orig_choice
+
+    def test_scifi_space_lore_coherence(self):
+        opening = "I am an astronaut on an EVA spacewalk outside a space station in orbit around Jupiter repairing the solar array"
+        state = StoryEngine.create_state(opening)
+        state["character"]["creation"]["in_progress"] = False
+
+        self.assertEqual(state["genre"], "scifi")
+        story, scene, choices, _, state = StoryEngine.generate(state, "secure tether and inspect solar array")
+
+        story_lower = story.lower()
+        # Ensure complete absence of out-of-place fantasy tropes
+        for fantasy_word in ("ink of the", "accord", "iron sword", "steel blade", "tallow candle", "the jupiter"):
+            self.assertNotIn(fantasy_word, story_lower)
+
+        # Ensure space context grounding
+        self.assertTrue(
+            any(w in story_lower for w in ("orbit", "jupiter", "solar", "array", "station", "tether", "telemetry", "suit", "space", "ice")),
+            f"Expected space grounding in story: {story}"
+        )
+
+        # Choices must be contextually grounded in space survival/EVA
+        joined_choices = " ".join(choices).lower()
+        self.assertTrue(
+            any(w in joined_choices for w in ("array", "tether", "suit", "telemetry", "power", "solar", "station", "oxygen", "scan", "orbit")),
+            f"Expected space grounding in choices: {choices}"
+        )
+
+    def test_feline_urban_lore_coherence(self):
+        opening = "I am a stray cat prowling a rain-slicked alleyway looking for food"
+        state = StoryEngine.create_state(opening)
+        state["character"]["creation"]["in_progress"] = False
+
+        self.assertEqual(state["genre"], "feline")
+        story, scene, choices, _, state = StoryEngine.generate(state, "crouch in shadows and sniff air")
+
+        story_lower = story.lower()
+        # Ensure absence of human medieval tropes
+        for human_trope in ("ink of the", "accord", "draw your sword", "steel", "wagon"):
+            self.assertNotIn(human_trope, story_lower)
+
+        # Ensure feline perspective
+        self.assertTrue(
+            any(w in story_lower for w in ("paw", "cat", "alley", "shadow", "rain", "sniff", "ears", "food", "whiskers", "prowl")),
+            f"Expected feline perspective in story: {story}"
+        )
+
+    def test_dynamic_lore_scraper_and_repository_storage(self):
+        from lore_corpus.lore_manager import LoreManager
+        premise = "I am an alchemist in Prague deciphering an ancient mercurial formula"
+        pack = LoreManager.detect_or_scrape_lore(premise, role="alchemist", setting="Prague")
+
+        self.assertIsNotNone(pack)
+        self.assertEqual(pack.get("genre_id"), "alchemist")
+        self.assertTrue(pack.get("keywords"))
+        self.assertTrue(pack.get("scraped_sources") is not None)
+
+        # Verify it was saved to the story repository on disk
+        lore_file = Path(__file__).resolve().parent.parent / "lore_corpus" / "documents" / "alchemist.json"
+        self.assertTrue(lore_file.exists())
+        self.assertGreater(lore_file.stat().st_size, 500)
+
+    def test_image_retriever_multi_tier_resilience(self):
+        from image_retriever import (
+            _is_valid_image_bytes,
+            get_preset_image_bytes,
+            resolve_scene_image,
+            search_web_images,
+        )
+
+        # 1. Validation logic rejects rate limit banners & error text
+        self.assertFalse(_is_valid_image_bytes(b"Free limit reached. Try again in 45s."))
+        self.assertFalse(_is_valid_image_bytes(b"402 Payment Required: free limit reached"))
+        self.assertFalse(_is_valid_image_bytes(b"short"))
+
+        # 2. Preset image bytes returns valid high-res image
+        preset_bytes, preset_name = get_preset_image_bytes(role="astronaut", genre="scifi")
+        self.assertTrue(_is_valid_image_bytes(preset_bytes))
+        self.assertEqual(preset_name, "astronaut.jpg")
+
+        # 3. Web image search returns candidate URLs
+        urls = search_web_images("astronaut space station", limit=2)
+        self.assertGreaterEqual(len(urls), 1)
+
+        # 4. resolve_scene_image returns valid image URL and source
+        img_url, src = resolve_scene_image(
+            prompt="astronaut on space station",
+            seed=42,
+            role="astronaut",
+            genre="scifi",
+            loc="orbital platform"
+        )
+        self.assertTrue(img_url.startswith("/static/game_images/"))
+        self.assertIn(src, ("cache", "ai_generation", "web_search", "preset_astronaut.jpg", "static_fallback"))
 
 
 if __name__ == "__main__":

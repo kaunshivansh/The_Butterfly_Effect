@@ -242,7 +242,11 @@ THEME_KEYWORDS = {
     'water': ['water', 'sea', 'ocean', 'drowned', 'sailor', 'ship', 'boat', 'lake', 'river', 'coast', 'causeways', 'surf', 'salt', 'reef', 'drown', 'wreck', 'cenote', 'tide'],
     'ruins': ['ruin', 'spire', 'temple', 'cathedral', 'tower', 'stone', 'basalt', 'milestone', 'statue', 'lintel', 'cairn', 'archway', 'obelisk', 'city', 'vanished', 'pueblo', 'excavation'],
     'stealth': ['spy', 'documents', 'stolen', 'thief', 'border', 'soldier', 'patrol', 'secret', 'hidden', 'cautious', 'sneak', 'war-torn', 'crosses', 'informant'],
-    'cold': ['frost', 'ice', 'snow', 'winter', 'chill', 'glacier', 'frozen', 'gloom', 'cold', 'sour']
+    'cold': ['frost', 'ice', 'snow', 'winter', 'chill', 'glacier', 'frozen', 'gloom', 'cold', 'sour'],
+    'space': ['space', 'mars', 'astronaut', 'orbit', 'rover', 'crater', 'shuttle', 'oxygen', 'vacuum', 'planet', 'cosmonaut', 'station', 'starship'],
+    'cyber': ['cyber', 'hacker', 'neon', 'corporation', 'corp', 'matrix', 'terminal', 'tokyo', 'data', 'grid', 'network', 'deck'],
+    'urban': ['alley', 'street', 'city', 'building', 'rain', 'pavement', 'brick', 'gutter', 'cat', 'rooftop', 'docks', 'subway', 'bar'],
+    'investigation': ['detective', 'murder', 'killer', 'crime', 'clue', 'evidence', 'police', 'alibi', 'investigator', 'noir', 'suspect', 'case']
 }
 
 MOTIFS = {
@@ -265,6 +269,26 @@ MOTIFS = {
         'low': "A damp outline showing high-water levels stains the nearest vertical stone.",
         'medium': "Upward-dripping moisture pools on the underside of the rock overhead.",
         'high': "Water seeps directly from the dry grain of the wood, carrying the cold smell of old salt."
+    },
+    'cosmic_telemetry': {
+        'low': "A faint pulse of telemetry static hums through your headset audio, then settles.",
+        'medium': "The oxygen gauge flickers in the corner of your HUD, ticking against the cold vacuum.",
+        'high': "A harsh warning chime blares inside your helmet, signaling critical atmospheric loss."
+    },
+    'cyber_glitch': {
+        'low': "A faint chromatic fringe ripples across your optical feed before snapping clear.",
+        'medium': "Sub-audible data carrier hum vibrates along your neural cables.",
+        'high': "Warning icons flash in scarlet across your vision as hostile ICE sweeps the subnet."
+    },
+    'feline_scent': {
+        'low': "The scent of woodsmoke and damp stone drifts on the night air.",
+        'medium': "Whiskers twitch as a faint rustling stirs behind the wooden crates.",
+        'high': "A sharp, distant bark cuts through the fog, putting every claw on alert."
+    },
+    'noir_shadows': {
+        'low': "Rain taps a relentless rhythm against the dripping iron fire escape.",
+        'medium': "A streak of yellow streetlight catches the edge of a trenchcoat down the block.",
+        'high': "The sharp metallic click of a revolver cocking echoes through the stairwell."
     }
 }
 
@@ -396,12 +420,22 @@ PREMISE_NOUN_PHRASING = {
     'sailor': ('your identity as a sailor', 'person'),
     'spy': ('your identity as a spy', 'person'),
     'healer': ('your identity as a healer', 'person'),
+    'astronaut': ('your astronaut training', 'person'),
+    'hacker': ('your cybernetic deck', 'person'),
+    'detective': ('your detective instinct', 'person'),
+    'cat': ('your keen senses', 'person'),
+    'owner': ('your lost owner', 'person'),
     'city': ('the vanished city', 'place'),
     'border': ('the war-torn border', 'place'),
     'forest': ('the frost-bitten forest', 'place'),
     'ruins': ('the plague ruins', 'place'),
+    'mars': ('the desolate surface of Mars', 'place'),
+    'alley': ('the rainy alley', 'place'),
+    'corporation': ('the corporate mainframe', 'place'),
     'cure': ('the cure', 'object'),
+    'oxygen': ('the emergency oxygen', 'object'),
     'documents': ('the stolen documents', 'object'),
     'rumors': ('the rumors', 'object'),
+    'rumor': ('the dark rumor', 'object'),
 }
 
