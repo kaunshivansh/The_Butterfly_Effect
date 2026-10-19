@@ -19,6 +19,25 @@ from image_retriever import resolve_scene_image
 
 load_dotenv()
 app = Flask(__name__)
+
+
+class VercelPathFixMiddleware:
+    """Ensure PATH_INFO matches Flask routes even if Vercel prepends entrypoint script names."""
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if path in {"/app.py", "/app.py/", "/api/index", "/api/index/"}:
+            environ["PATH_INFO"] = "/"
+        elif path.startswith("/app.py/"):
+            environ["PATH_INFO"] = path[7:]
+        elif path.startswith("/api/index/"):
+            environ["PATH_INFO"] = path[10:]
+        return self.wsgi_app(environ, start_response)
+
+
+app.wsgi_app = VercelPathFixMiddleware(app.wsgi_app)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_bytes(32)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
